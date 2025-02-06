@@ -1,0 +1,207 @@
+Topic,Variable,Census,Formula
+Age Group and Gender,Median age,Decennial,DP1_0073C
+Age Group and Gender,Percent male,Decennial,DP1_0025C/(DP1_0025C+DP1_0049C)
+Age Group and Gender,Percent female,Decennial,DP1_0049C/(DP1_0025C+DP1_0049C)
+Age Group and Gender,Percent under 18,Decennial,1 - ((DP1_0045C + DP1_0069C)/(DP1_0025C+DP1_0049C))
+Age Group and Gender,Percent 65 and over,Decennial,(DP1_0048C + DP1_0072C)/(DP1_0025C+DP1_0049C)
+Age Group and Gender,value_Male population Under 5 years,Decennial,DP1_0026C
+Age Group and Gender,value_Male population 5 to 9 years,Decennial,DP1_0027C
+Age Group and Gender,value_Male population 10 to 14 years,Decennial,DP1_0028C
+Age Group and Gender,value_Male population 15 to 19 years,Decennial,DP1_0029C
+Age Group and Gender,value_Male population 20 to 24 years,Decennial,DP1_0030C
+Age Group and Gender,value_Male population 25 to 29 years,Decennial,DP1_0031C
+Age Group and Gender,value_Male population 30 to 34 years,Decennial,DP1_0032C
+Age Group and Gender,value_Male population 35 to 39 years,Decennial,DP1_0033C
+Age Group and Gender,value_Male population 40 to 44 years,Decennial,DP1_0034C
+Age Group and Gender,value_Male population 45 to 49 years,Decennial,DP1_0035C
+Age Group and Gender,value_Male population 50 to 54 years,Decennial,DP1_0036C
+Age Group and Gender,value_Male population 55 to 59 years,Decennial,DP1_0037C
+Age Group and Gender,value_Male population 60 to 64 years,Decennial,DP1_0038C
+Age Group and Gender,value_Male population 65 to 69 years,Decennial,DP1_0039C
+Age Group and Gender,value_Male population 70 to 74 years,Decennial,DP1_0040C
+Age Group and Gender,value_Male population 75 to 79 years,Decennial,DP1_0041C
+Age Group and Gender,value_Male population 80 to 84 years,Decennial,DP1_0042C
+Age Group and Gender,value_Male population 85 years and over,Decennial,DP1_0043C
+Age Group and Gender,value_Female population Under 5 years,Decennial,DP1_0050C
+Age Group and Gender,value_Female population 5 to 9 years,Decennial,DP1_0051C
+Age Group and Gender,value_Female population 10 to 14 years,Decennial,DP1_0052C
+Age Group and Gender,value_Female population 15 to 19 years,Decennial,DP1_0053C
+Age Group and Gender,value_Female population 20 to 24 years,Decennial,DP1_0054C
+Age Group and Gender,value_Female population 25 to 29 years,Decennial,DP1_0055C
+Age Group and Gender,value_Female population 30 to 34 years,Decennial,DP1_0056C
+Age Group and Gender,value_Female population 35 to 39 years,Decennial,DP1_0057C
+Age Group and Gender,value_Female population 40 to 44 years,Decennial,DP1_0058C
+Age Group and Gender,value_Female population 45 to 49 years,Decennial,DP1_0059C
+Age Group and Gender,value_Female population 50 to 54 years,Decennial,DP1_0060C
+Age Group and Gender,value_Female population 55 to 59 years,Decennial,DP1_0061C
+Age Group and Gender,value_Female population 60 to 64 years,Decennial,DP1_0062C
+Age Group and Gender,value_Female population 65 to 69 years,Decennial,DP1_0063C
+Age Group and Gender,value_Female population 70 to 74 years,Decennial,DP1_0064C
+Age Group and Gender,value_Female population 75 to 79 years,Decennial,DP1_0065C
+Age Group and Gender,value_Female population 80 to 84 years,Decennial,DP1_0066C
+Age Group and Gender,value_Female population 85 years and over,Decennial,DP1_0067C
+Age Group and Gender,percent_Male population Under 5 years,Decennial,DP1_0026C/DP1_0001C
+Age Group and Gender,percent_Male population 5 to 9 years,Decennial,DP1_0027C/DP1_0001C
+Age Group and Gender,percent_Male population 10 to 14 years,Decennial,DP1_0028C/DP1_0001C
+Age Group and Gender,percent_Male population 15 to 19 years,Decennial,DP1_0029C/DP1_0001C
+Age Group and Gender,percent_Male population 20 to 24 years,Decennial,DP1_0030C/DP1_0001C
+Age Group and Gender,percent_Male population 25 to 29 years,Decennial,DP1_0031C/DP1_0001C
+Age Group and Gender,percent_Male population 30 to 34 years,Decennial,DP1_0032C/DP1_0001C
+Age Group and Gender,percent_Male population 35 to 39 years,Decennial,DP1_0033C/DP1_0001C
+Age Group and Gender,percent_Male population 40 to 44 years,Decennial,DP1_0034C/DP1_0001C
+Age Group and Gender,percent_Male population 45 to 49 years,Decennial,DP1_0035C/DP1_0001C
+Age Group and Gender,percent_Male population 50 to 54 years,Decennial,DP1_0036C/DP1_0001C
+Age Group and Gender,percent_Male population 55 to 59 years,Decennial,DP1_0037C/DP1_0001C
+Age Group and Gender,percent_Male population 60 to 64 years,Decennial,DP1_0038C/DP1_0001C
+Age Group and Gender,percent_Male population 65 to 69 years,Decennial,DP1_0039C/DP1_0001C
+Age Group and Gender,percent_Male population 70 to 74 years,Decennial,DP1_0040C/DP1_0001C
+Age Group and Gender,percent_Male population 75 to 79 years,Decennial,DP1_0041C/DP1_0001C
+Age Group and Gender,percent_Male population 80 to 84 years,Decennial,DP1_0042C/DP1_0001C
+Age Group and Gender,percent_Male population 85 years and over,Decennial,DP1_0043C/DP1_0001C
+Age Group and Gender,percent_Female population Under 5 years,Decennial,DP1_0050C/DP1_0001C
+Age Group and Gender,percent_Female population 5 to 9 years,Decennial,DP1_0051C/DP1_0001C
+Age Group and Gender,percent_Female population 10 to 14 years,Decennial,DP1_0052C/DP1_0001C
+Age Group and Gender,percent_Female population 15 to 19 years,Decennial,DP1_0053C/DP1_0001C
+Age Group and Gender,percent_Female population 20 to 24 years,Decennial,DP1_0054C/DP1_0001C
+Age Group and Gender,percent_Female population 25 to 29 years,Decennial,DP1_0055C/DP1_0001C
+Age Group and Gender,percent_Female population 30 to 34 years,Decennial,DP1_0056C/DP1_0001C
+Age Group and Gender,percent_Female population 35 to 39 years,Decennial,DP1_0057C/DP1_0001C
+Age Group and Gender,percent_Female population 40 to 44 years,Decennial,DP1_0058C/DP1_0001C
+Age Group and Gender,percent_Female population 45 to 49 years,Decennial,DP1_0059C/DP1_0001C
+Age Group and Gender,percent_Female population 50 to 54 years,Decennial,DP1_0060C/DP1_0001C
+Age Group and Gender,percent_Female population 55 to 59 years,Decennial,DP1_0061C/DP1_0001C
+Age Group and Gender,percent_Female population 60 to 64 years,Decennial,DP1_0062C/DP1_0001C
+Age Group and Gender,percent_Female population 65 to 69 years,Decennial,DP1_0063C/DP1_0001C
+Age Group and Gender,percent_Female population 70 to 74 years,Decennial,DP1_0064C/DP1_0001C
+Age Group and Gender,percent_Female population 75 to 79 years,Decennial,DP1_0065C/DP1_0001C
+Age Group and Gender,percent_Female population 80 to 84 years,Decennial,DP1_0066C/DP1_0001C
+Age Group and Gender,percent_Female population 85 years and over,Decennial,DP1_0067C/DP1_0001C
+Race and Ethnicity,nh_White alone,Decennial,P2_005N/P1_001N
+Race and Ethnicity,nh_Black or African American alone,Decennial,P2_006N/P1_001N
+Race and Ethnicity,nh_American Indian and Alaska Native alone,Decennial,P2_007N/P1_001N
+Race and Ethnicity,nh_Asian alone,Decennial,P2_008N/P1_001N
+Race and Ethnicity,nh_Native Hawaiian and other Pacific Islander alone,Decennial,P2_009N/P1_001N
+Race and Ethnicity,nh_Some other race alone,Decennial,P2_010N/P1_001N
+Race and Ethnicity,nh_Two or more races,Decennial,P2_011N/P1_001N
+Race and Ethnicity,Hispanic or Latino (any race),Decennial,P2_002N/P1_001N
+Race and Ethnicity,White alone,Decennial,P1_003N/P1_001N
+Race and Ethnicity,Black or African American alone,Decennial,P1_004N/P1_001N
+Race and Ethnicity,American Indian and Alaska Native alone,Decennial,P1_005N/P1_001N
+Race and Ethnicity,Asian alone,Decennial,P1_006N/P1_001N
+Race and Ethnicity,Native Hawaiian and other Pacific Islander alone,Decennial,P1_007N/P1_001N
+Race and Ethnicity,Some other race alone,Decennial,P1_008N/P1_001N
+Race and Ethnicity,Two or more races,Decennial,P1_009N/P1_001N
+Education,Less than 9th grade,ACS,(B15003_002+B15003_003+B15003_004+B15003_005+B15003_006+B15003_007E+B15003_008E+B15003_009E+B15003_010E+B15003_011E+B15003_012E)/B15003_001E
+Education,"9th to 12th grade, no diploma",ACS,(B15003_013+B15003_014+B15003_015+B15003_016)/B15003_001
+Education,High school graduate (or equivalent),ACS,(B15003_017+B15003_018)/B15003_001
+Education,"Some college, no degree",ACS,(B15003_019+B15003_020)/B15003_001
+Education,Associate's degree,ACS,B15003_021/B15003_001
+Education,Bachelor's degree,ACS,B15003_022/B15003_001
+Education,Graduate or professional degree,ACS,(B15003_023+B15003_024+B15003_025)/B15003_001
+Household Median Income,"Less than $10,000",ACS,B19001_002/B19001_001
+Household Median Income,"$10,000 to $14,999",ACS,B19001_003/B19001_001
+Household Median Income,"$15,000 to $19,999",ACS,B19001_004/B19001_001
+Household Median Income,"$20,000 to $24,999",ACS,B19001_005/B19001_001
+Household Median Income,"$25,000 to $29,999",ACS,B19001_006/B19001_001
+Household Median Income,"$30,000 to $34,999",ACS,B19001_007/B19001_001
+Household Median Income,"$35,000 to $39,999",ACS,B19001_008/B19001_001
+Household Median Income,"$40,000 to $44,999",ACS,B19001_009/B19001_001
+Household Median Income,"$45,000 to $49,999",ACS,B19001_010/B19001_001
+Household Median Income,"$50,000 to $59,999",ACS,B19001_011/B19001_001
+Household Median Income,"$60,000 to $74,999",ACS,B19001_012/B19001_001
+Household Median Income,"$75,000 to $99,999",ACS,B19001_013/B19001_001
+Household Median Income,"$100,000 to $124,999",ACS,B19001_014/B19001_001
+Household Median Income,"$125,000 to $149,999",ACS,B19001_015/B19001_001
+Household Median Income,"$150,000 to $199,999",ACS,B19001_016/B19001_001
+Household Median Income,"$200,000 or more",ACS,B19001_017/B19001_001
+Household Median Income,Median household income in the past 12 months (in 2022 inflation-adjusted dollars),ACS,B19013_001
+Family Median Income,Median family income in the past 12 months (in 2022 inflation-adjusted dollars),ACS,B19113_001
+Unemployment,Percent unemployment,ACS,S2301_C04_001
+Employment by Industry ,"Agriculture, forestry, fishing and hunting, and mining",ACS,S2403_C01_002/S2403_C01_001
+Employment by Industry ,Construction,ACS,S2403_C01_005/S2403_C01_001
+Employment by Industry ,Manufacturing,ACS,S2403_C01_006/S2403_C01_001
+Employment by Industry ,Wholesale trade,ACS,S2403_C01_007/S2403_C01_001
+Employment by Industry ,Retail trade,ACS,S2403_C01_008/S2403_C01_001
+Employment by Industry ,"Transportation and warehousing, and utilities",ACS,S2403_C01_009/S2403_C01_001
+Employment by Industry ,Information,ACS,S2403_C01_012/S2403_C01_001
+Employment by Industry ,"Finance and insurance, and real estate and rental and leasing",ACS,S2403_C01_013/S2403_C01_001
+Employment by Industry ,"Professional, scientific, and management, and administrative and waste management services",ACS,S2403_C01_016/S2403_C01_001
+Employment by Industry ,"Educational services, and health care and social assistance",ACS,S2403_C01_020/S2403_C01_001
+Employment by Industry ,"Arts, entertainment, and recreation, and accommodation and food services",ACS,S2403_C01_023/S2403_C01_001
+Employment by Industry ,"Other services, except public administration",ACS,S2403_C01_026/S2403_C01_001
+Employment by Industry ,Public administration,ACS,S2403_C01_027/S2403_C01_001
+Age of Housing Stock,2020 or later,ACS,B25034_002/B25034_001
+Age of Housing Stock,2010 to 2019,ACS,B25034_003/B25034_001
+Age of Housing Stock,2000 to 2009,ACS,B25034_004/B25034_001
+Age of Housing Stock,1990 to 1999,ACS,B25034_005/B25034_001
+Age of Housing Stock,1980 to 1989,ACS,B25034_006/B25034_001
+Age of Housing Stock,1970 to 1979,ACS,B25034_007/B25034_001
+Age of Housing Stock,1960 to 1969,ACS,B25034_008/B25034_001
+Age of Housing Stock,1950 to 1959,ACS,B25034_009/B25034_001
+Age of Housing Stock,1940 to 1949,ACS,B25034_010/B25034_001
+Age of Housing Stock,1939 or earlier,ACS,B25034_011/B25034_001
+Homeownership Rate,Owner occupied,ACS,DP04_0046P
+Median home value,Median home value,ACS,DP04_0089
+Cost Burdened Households,Renters,ACS,(DP04_0141 + DP04_0142) / DP04_0136
+Cost Burdened Households,Mortgage holders,ACS,(DP04_0114 + DP04_0115) / DP04_0093
+Cost Burdened Households,Owned home,ACS,(DP04_0123 + DP04_0124) / DP04_0102
+Labor Force Participation Rate (Population 16+ Years Old),Labor force participation,ACS,S2301_C02_001
+Poverty,Poverty under 18 years,ACS,S1701_C02_002 / S1701_C01_002
+Poverty,Poverty 18 to 64 years,ACS,S1701_C02_006 / S1701_C01_006
+Poverty,Poverty 65 years and over,ACS,S1701_C02_010 / S1701_C01_010
+Housing Unit Type,"1 unit, detached",ACS,B25024_002/B25024_001
+Housing Unit Type,"1 unit, attached",ACS,B25024_003/B25024_001
+Housing Unit Type,Multiple family,ACS,(B25024_004 + B25024_005 + B25024_006 + B25024_007 + B25024_008 + B25024_009)/B25024_001
+Housing Unit Type,Mobile home/other,ACS,(B25024_010 + B25024_011)/B25024_001
+Housing Vacancy Rate,Homeowner vacancy,ACS,DP04_0004
+Housing Vacancy Rate,Rental vacancy,ACS,DP04_0005
+Average Household Size,2022 average household size,ACS,DP02_0016
+Population,population_1970,Decennial 1970,From IPUMs data
+Population,population_1980,Decennial 1980,From IPUMs data
+Population,population_1990,Decennial 1990,From IPUMs data
+Population,population_2000,Decennial 2000,From IPUMs data
+Population,Population,Decennial,P1_001N
+Age Group and Gender,2010_Median age,Decennial 2010,P013001
+Age Group and Gender,2010_Percent male,Decennial 2010,P012002/(P012002+P012026)
+Age Group and Gender,2010_Percent female,Decennial 2010,P012026/(P012002+P012026)
+Age Group and Gender,2010_Percent under 18,Decennial 2010,(P012A003 + P012A004 + P012A005 + P012A006+P012A027 + P012A028 + P012A029 + P012A030)/(P012002+P012026)
+Age Group and Gender,2010_Percent 65 and over,Decennial 2010,(P012A020 + P012A021 + P012A022 + P012A023 + P012A024 + P012A025+P012A044 + P012A045 + P012A046 + P012A047 + P012A048 + P012A049)/(P012002+P012026)
+Age Group and Gender,2010_percent_Male population Under 5 years,Decennial,P012003/P012001
+Age Group and Gender,2010_percent_Male population 5 to 9 years,Decennial,P012004/P012001
+Age Group and Gender,2010_percent_Male population 10 to 14 years,Decennial,P012005/P012001
+Age Group and Gender,2010_percent_Male population 15 to 19 years,Decennial,(P012006+P012007)/P012001
+Age Group and Gender,2010_percent_Male population 20 to 24 years,Decennial,(P012008+P012009+P012010)/P012001
+Age Group and Gender,2010_percent_Male population 25 to 29 years,Decennial,P012011/P012001
+Age Group and Gender,2010_percent_Male population 30 to 34 years,Decennial,P012012/P012001
+Age Group and Gender,2010_percent_Male population 35 to 39 years,Decennial,P012013/P012001
+Age Group and Gender,2010_percent_Male population 40 to 44 years,Decennial,P012014/P012001
+Age Group and Gender,2010_percent_Male population 45 to 49 years,Decennial,P012015/P012001
+Age Group and Gender,2010_percent_Male population 50 to 54 years,Decennial,P012016/P012001
+Age Group and Gender,2010_percent_Male population 55 to 59 years,Decennial,P012017/P012001
+Age Group and Gender,2010_percent_Male population 60 to 64 years,Decennial,(P012018+P012019)/P012001
+Age Group and Gender,2010_percent_Male population 65 to 69 years,Decennial,(P012020+P012021)/P012001
+Age Group and Gender,2010_percent_Male population 70 to 74 years,Decennial,P012022/P012001
+Age Group and Gender,2010_percent_Male population 75 to 79 years,Decennial,P012023/P012001
+Age Group and Gender,2010_percent_Male population 80 to 84 years,Decennial,P012024/P012001
+Age Group and Gender,2010_percent_Male population 85 years and over,Decennial,P012025/P012001
+Age Group and Gender,2010_percent_Female population Under 5 years,Decennial,P012027/P012001
+Age Group and Gender,2010_percent_Female population 5 to 9 years,Decennial,P012028/P012001
+Age Group and Gender,2010_percent_Female population 10 to 14 years,Decennial,P012029/P012001
+Age Group and Gender,2010_percent_Female population 15 to 19 years,Decennial,(P012030+P012031)/P012001
+Age Group and Gender,2010_percent_Female population 20 to 24 years,Decennial,(P012032+P012033+P012034)/P012001
+Age Group and Gender,2010_percent_Female population 25 to 29 years,Decennial,P012035/P012001
+Age Group and Gender,2010_percent_Female population 30 to 34 years,Decennial,P012036/P012001
+Age Group and Gender,2010_percent_Female population 35 to 39 years,Decennial,P012037/P012001
+Age Group and Gender,2010_percent_Female population 40 to 44 years,Decennial,P012038/P012001
+Age Group and Gender,2010_percent_Female population 45 to 49 years,Decennial,P012039/P012001
+Age Group and Gender,2010_percent_Female population 50 to 54 years,Decennial,P012040/P012001
+Age Group and Gender,2010_percent_Female population 55 to 59 years,Decennial,P012041/P012001
+Age Group and Gender,2010_percent_Female population 60 to 64 years,Decennial,(P012042+P012043)/P012001
+Age Group and Gender,2010_percent_Female population 65 to 69 years,Decennial,(P012044+P012045)/P012001
+Age Group and Gender,2010_percent_Female population 70 to 74 years,Decennial,P012046/P012001
+Age Group and Gender,2010_percent_Female population 75 to 79 years,Decennial,P012047/P012001
+Age Group and Gender,2010_percent_Female population 80 to 84 years,Decennial,P012048/P012001
+Age Group and Gender,2010_percent_Female population 85 years and over,Decennial,P012049/P012001
+Housing units,Housing units,Decennial,H1_001N
+Housing units,2010_Housing units,Decennial 2010,H001001
+Housing units,2000_Housing units,Decennial 2000,H001001

@@ -1,0 +1,1304 @@
+---
+date: "`r Sys.Date()`"
+#author: "Your Name"
+title: "Planning Template"
+output: 
+  officedown::rdocx_document:
+    mapstyles:
+      Normal: ['First Paragraph']
+params:
+  muni: NA
+  data: NA
+  moe_reports: NA
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.cap = TRUE)
+library(officedown)
+library(officer)
+library(dplyr)
+library(stringr)
+
+# fp <- fp_par(
+#   text.align = "center", 
+#   padding.bottom = 20, padding.top = 120, 
+#   border.bottom = fp_border(style = "none"),
+#   border.left = fp_border(style = "none"))
+# 
+# ft <- fp_text(shading.color='#EFEFEF', bold = TRUE)
+
+fp_text_data <- fp_text(font.size = 9)
+fp_text_label <- fp_text(font.size = 10)
+fp_text_title <- fp_text(font.size = 12)
+
+
+chart_default_theme <- mschart_theme(
+  main_title = fp_text(font.size = 12), 
+  axis_title_x = fp_text(font.size = 10), 
+  axis_title_y = fp_text(font.size = 10),
+  legend_text = fp_text(font.size = 9),
+  grid_major_line_x = fp_border(color = "#D9D9D9", style = "solid", "width" = .75),
+  grid_major_line_y = fp_border(color = "#D9D9D9", style = "solid", "width" = .75)
+)
+
+```
+
+```{r insert_chart, include=FALSE}
+#utility function to insert a mschart editable chart into the doc
+insert_chart = function(chart_to_insert, id) {
+#Create a doc object using officer. Add chart.
+  doc <-
+    officer::read_docx() %>%
+    body_add_chart(chart = chart_to_insert, style = "graphic title", height = 5, width = 7)
+
+  #Save document to a folder
+  print(doc, target = paste0("placeholder_", id, ".docx"))
+
+  #Pour that document into the rmarkdown
+  block_pour_docx(paste0("placeholder_", id, ".docx"))
+}
+```
+
+
+```{r variables,  include=FALSE}
+
+pop_trend_vars <- c("population_1980",
+                    "population_1990",
+                    "population_2000",
+                    "population_2010",
+                    "population_1970",
+                    "Population")
+
+race_vars_nh <- c("nh_White alone", 
+               "nh_Black or African American alone", 
+               "nh_American Indian and Alaska Native alone", 
+               "Hispanic or Latino (any race)",
+               "nh_Asian alone",
+               "nh_Native Hawaiian and other Pacific Islander alone",
+               "nh_Some other race alone",
+               "nh_Two or more races")
+
+race_vars <- c("White alone", 
+               "Black or African American alone", 
+               "American Indian and Alaska Native alone", 
+               "Hispanic or Latino (any race)",
+               "Asian alone",
+               "Native Hawaiian and other Pacific Islander alone",
+               "Some other race alone",
+               "Two or more races")
+
+age_gender_vars <- c(
+  "Median age",
+  "Percent under 18",
+  "Percent 65 and over",
+  "Percent female",
+  "Percent male"
+)
+
+age_gender_2010_vars <- c(
+  "2010_Median age",
+  "2010_Percent under 18",
+  "2010_Percent 65 and over",
+  "2010_Percent female",
+  "2010_Percent male"
+)
+
+education_vars <- c(
+  "Less than 9th grade", 
+  "9th to 12th grade, no diploma", 
+  "High school graduate (or equivalent)", 
+  "Some college, no degree", 
+  "Associate's degree", 
+  "Bachelor's degree", 
+  "Graduate or professional degree"
+)
+
+cost_burden_vars <- c(
+  "Renters",
+  "Mortgage holders",
+  "Owned home"
+)
+
+poverty_vars <- c(
+  "Poverty under 18 years",
+  "Poverty 18 to 64 years",
+  "Poverty 65 years and over"
+)
+
+housing_unit_vars <- c(
+  "Housing units",
+  "2010_Housing units",
+  "2000_Housing units"
+)
+
+structure_type_vars <- c(
+  "1 unit, detached",
+  "1 unit, attached",
+  "Multiple family",
+  "Mobile home/other"
+)
+
+vacancy_vars <- c(
+  "Homeowner vacancy",
+  "Rental vacancy"
+)
+
+#for the progress bar
+num_sections <- 36
+cur_section <- 1
+
+iterate_progress_bar <- function() {
+  shiny::setProgress(cur_section/num_sections)
+  cur_section <<- cur_section + 1
+}
+
+#for data source info
+acs_cur_year <- "2022"
+```
+
+
+\newpage
+
+
+# Demographic Trends
+
+<br>
+<br>
+
+## Population Trends
+
+<br>
+<br>
+
+### Summary Table
+<br>
+<br>
+
+```{r population_trend_table, echo=FALSE}
+#TODO - when I start including neighboring communities, will need to update this
+
+#select the correct data
+pop_data <- params$data %>%
+  filter(Variable %in% pop_trend_vars) %>% 
+  mutate(Variable = case_when(Variable == "Population" ~ "population_2020",
+                              TRUE ~ Variable)) %>% 
+  #transform to match the CARPC table
+  mutate(Variable = substr(Variable, 12, 100)) %>% 
+  pivot_longer(2:4) %>% 
+  pivot_wider(names_from = Variable) %>% 
+  select(name, `1980`, `1990`, `2000`, `2010`, `2020`) %>% 
+  mutate(`Population Change 2010-2020` = `2020` - `2010`) %>% 
+  #format with comma thousand separator
+  mutate(across(2:7, ~ str_trim(format(.x, big.mark = ",", scientific = FALSE))))
+
+#display the table
+#head(pop_data, n=3)
+flextable(pop_data) %>%
+  set_caption("Population by Decade") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: 2020, 2010, 2000, 1990, 1980 Decennial census data
+
+\newpage
+
+### Summary Chart
+
+<br>
+<br>
+
+```{r population_trend_graph, echo=FALSE}
+
+#select the correct data
+pop_data <- params$data %>%
+#pop_data <- all_data %>%
+  filter(Variable %in% pop_trend_vars) %>% 
+  mutate(Variable = case_when(Variable == "Population" ~ "population_2020",
+                              TRUE ~ Variable)) %>% 
+  mutate(Variable = substr(Variable, 12, 100)) %>%
+  select(1:2) %>% 
+  #order correctly
+  pivot_longer(2) %>% 
+  arrange(Variable) %>% 
+  mutate(Variable = factor(Variable, levels=unique(as.character(Variable))))
+
+#display the chart
+pop_chart <-
+  ms_barchart(
+  data = pop_data,
+  x = "Variable",
+  y = "value"
+  ) %>%
+  chart_labels(title = paste0(params$muni, " Population 1970-2020"), xlab = "Year", ylab = "Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,##0") %>% 
+  chart_data_labels(num_fmt = "#,###", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(pop_chart, "population")
+
+iterate_progress_bar()
+```
+Source: 2020, 2010, 2000, 1990, 1980, 1970 Decennial census data
+
+\newpage
+
+
+## Age & Gender
+
+<br>
+<br>
+
+### Summary Tables
+
+<br>
+<br>
+
+```{r age_gender_table, echo = FALSE}
+
+age_data_s1 <- params$data %>%
+  filter(Variable %in% age_gender_vars) %>% 
+   rename_with(~paste0("2020_", .), 2:4)
+
+age_data_s2 <- params$data %>%
+  filter(Variable %in% age_gender_2010_vars) %>% 
+   rename_with(~paste0("2010_", .), 2:4) %>% 
+  mutate(Variable = substr(Variable, 6, 100))
+
+age_data <- full_join(age_data_s1, age_data_s2, join_by(Variable == Variable)) %>% 
+  #order correctly
+  select(Variable, !!as.name(paste0("2010_", params$muni)), !!as.name(paste0("2020_", params$muni)), `2010_Dane County`, `2020_Dane County`, `2010_State of Wisconsin`, `2020_State of Wisconsin` )
+
+#using flextable to merge cells and fit CARPC table design
+age_table <- flextable(age_data) %>%
+  set_header_labels(values = c("", "2010", "2020", "2010", "2020", "2010", "2020")) %>% 
+  add_header_row(
+  colwidths = c(1, 2, 2, 2),
+  values = c("", params$muni, "Dane County", "State of Wisconsin")
+  ) %>%
+  set_caption("Age Summary") %>% 
+  align(align = "center", part = "all") %>% 
+  autofit(add_w = 0)
+
+age_table
+
+iterate_progress_bar()
+```
+Source: 2020, 2010 Decennial census data
+
+\newpage
+
+```{r age_gender_table_brackets, echo = FALSE}
+
+age_graph_data_percent_table_s1 <- params$data %>%
+  #shortcut to find the right variables
+  filter(grepl("^percent_", Variable)) %>% 
+  #reformat data
+  mutate(Variable = substr(Variable, 9, 50)) %>% 
+  mutate(group = word(Variable, 1)) %>% 
+  mutate(Variable = word(Variable, 3, -1)) %>% 
+  mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))) %>% 
+  group_by(Variable) %>% 
+  #sum into brackets, dropping gender division
+  summarise(`2020_community` = sum(!!as.name(params$muni)), `2020_Dane County` = sum(`Dane County`), `2020_State of Wisconsin` = sum(`State of Wisconsin`)) 
+
+age_graph_data_percent_table_s2 <- params$data %>%
+  #shortcut to find the right variables
+  filter(grepl("^2010_percent_", Variable)) %>% 
+  #reformat data
+  mutate(Variable = substr(Variable, 9, 50)) %>% 
+  mutate(group = word(Variable, 1)) %>% 
+  mutate(Variable = word(Variable, 3, -1)) %>%
+  mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))) %>% 
+  group_by(Variable) %>% 
+  #sum into brackets, dropping gender division
+  summarise(`2010_community` = sum(!!as.name(params$muni)), `2010_Dane County` = sum(`Dane County`), `2010_State of Wisconsin` = sum(`State of Wisconsin`))
+
+age_graph_data_percent_table <- left_join(age_graph_data_percent_table_s1, age_graph_data_percent_table_s2, join_by(Variable == Variable)) %>% 
+  #order correctly
+  select(Variable, `2010_community`, `2020_community`, `2010_Dane County`, `2020_Dane County`, `2010_State of Wisconsin`, `2020_State of Wisconsin` )
+
+#using flextable to merge cells and fit CARPC table design
+age_bracket_table <- flextable(age_graph_data_percent_table) %>%
+  set_header_labels(values = c("", "2010", "2020", "2010", "2020", "2010", "2020")) %>% 
+  add_header_row(
+  colwidths = c(1, 2, 2, 2),
+  values = c("", params$muni, "Dane County", "State of Wisconsin")
+  ) %>%
+  set_caption("Age Bracket by Percent") %>% 
+  align(align = "center", part = "all") %>% 
+  autofit(add_w = 0)
+
+age_bracket_table
+
+iterate_progress_bar()
+```
+Source: 2020, 2010 Decennial census data
+
+\newpage
+
+
+### Municipality
+
+<br>
+<br>
+
+```{r age_data, include=FALSE}
+age_graph_data_percent <- params$data %>%
+  #shortcut to find the right variables
+  filter(grepl("^percent_", Variable)) %>% 
+  #reformat data for graphing
+  mutate(Variable = substr(Variable, 9, 50)) %>% 
+  mutate(group = word(Variable, 1)) %>% 
+  mutate(Variable = word(Variable, 3, -1))
+
+age_graph_data_count <- params$data %>%
+  filter(grepl("^value_", Variable)) %>%
+  #reformat data for graphing
+  mutate(Variable = word(Variable, 3, -1)) %>%
+  #order correctly
+  mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))) %>% 
+  group_by(Variable) %>%
+  summarise(total = sum(!!as.name(params$muni)))
+```
+
+
+```{r age_p_muni, echo=FALSE}
+age_p_muni <-
+  ms_barchart(
+  data = age_graph_data_percent %>%
+    select(Variable, !!as.name(params$muni), group) %>% 
+    #order correctly
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = params$muni, group = "group"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = -50) %>% 
+  chart_labels(title = paste0("Female & Male Population by Age Group (", params$muni, ")"), xlab = "Age Group", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_y(num_fmt = "#,###.0\\%")
+
+
+insert_chart(age_p_muni, "age_p_muni")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+
+```{r age_p_muni_dual, echo=FALSE}
+
+age_graph_data_percent_dual <- age_graph_data_percent %>%
+  select(Variable, !!as.name(params$muni), group) %>% 
+  #make male category values negative to format graph correctly
+  mutate((!!as.name(params$muni)) := case_when(group == "Male" ~ !!as.name(params$muni) * -1,
+                                   TRUE ~ !!as.name(params$muni)))
+
+age_p_muni_dual <-
+  ms_barchart(
+  data = age_graph_data_percent_dual %>%
+    #order correctly
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = params$muni, group = "group"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = 100) %>% 
+   chart_labels(title = paste0("Female & Male Population by Age Group (", params$muni, ")"), xlab = "Age Group", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_x(tick_label_pos = "low") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%;[Black]#,##0\\%")
+
+insert_chart(age_p_muni_dual, "age_p_muni_dual")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+```{r age_c_muni, echo=FALSE}
+
+age_c_muni <-
+  ms_barchart(
+  data = age_graph_data_count,
+  x = "Variable",
+  y = "total"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = -50) %>% 
+  chart_labels(title = paste0("Population by Age Group (", params$muni, ")"), xlab = "Age Group", ylab = "Count of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0, legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,##0")
+
+
+insert_chart(age_c_muni, "age_c_muni")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+
+### County
+
+<br>
+<br>
+
+```{r age_p_county, echo=FALSE}
+
+age_p_county <-
+  ms_barchart(
+  data = age_graph_data_percent %>%
+    select(Variable, `Dane County`, group) %>% 
+    #order correctly
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = "Dane County", group = "group"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = -50) %>% 
+  chart_labels(title = "Female & Male Percent Population by Age Group (Dane County)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_y(num_fmt = "#,###.0\\%")
+
+
+insert_chart(age_p_county, "age_p_county")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+```{r age_p_county_dual, echo=FALSE}
+age_graph_data_percent_dual <- age_graph_data_percent %>%
+  select(Variable, `Dane County`, group) %>%
+  #make male category values negative to format graph correctly
+  mutate(`Dane County` = case_when(group == "Male" ~ `Dane County` * -1,
+                                   TRUE ~ `Dane County`))
+
+age_p_county_dual <-
+  ms_barchart(
+  data = age_graph_data_percent_dual %>%
+    #order correctly
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = "Dane County", group = "group"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = 100) %>% 
+  chart_labels(title = "Female & Male Percent Population by Age Group (Dane County)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_x(tick_label_pos = "low") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%;[Black]#,##0\\%")
+
+insert_chart(age_p_county_dual, "age_p_county_dual")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+### State
+
+<br>
+<br>
+
+```{r age_p_state, echo=FALSE}
+
+age_p_state <-
+  ms_barchart(
+  data = age_graph_data_percent %>%
+    select(Variable, `State of Wisconsin`, group) %>% 
+    #order correctly
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = "State of Wisconsin", group = "group"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = -50) %>% 
+  chart_labels(title = "Female & Male Percent Population by Age Group (WI)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_y(num_fmt = "#,###.0\\%")
+
+
+insert_chart(age_p_state, "age_p_state")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+```{r age_p_state_dual, echo=FALSE}
+
+age_graph_data_percent_dual <- age_graph_data_percent %>%
+  select(Variable, `State of Wisconsin`, group) %>% 
+  #make male category values negative to format graph correctly
+  mutate(`State of Wisconsin` = case_when(group == "Male" ~ `State of Wisconsin` * -1,
+                                   TRUE ~ `State of Wisconsin`))
+
+age_p_state_dual <-
+  ms_barchart(
+  data = age_graph_data_percent_dual %>%
+    #order correctly
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = "State of Wisconsin", group = "group"
+  ) %>% 
+  chart_settings(dir = "horizontal", overlap = 100) %>% 
+  chart_labels(title = "Female & Male Percent Population by Age Group (WI)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_x(tick_label_pos = "low") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%;[Black]#,##0\\%")
+
+insert_chart(age_p_state_dual, "age_p_state_dual")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+
+\newpage
+
+## Race & Ethnicity
+
+<br>
+<br>
+
+```{r race_data, include=FALSE}
+#select the correct data
+
+race_data_nh <- params$data %>%
+  filter(Variable %in% race_vars_nh) %>% 
+    #get rid of the prefixes for the sake of table/chart labels
+  mutate(Variable = case_when(Variable != "Hispanic or Latino (any race)" ~ substr(Variable, 4, 200),
+                              TRUE ~ Variable))
+race_data <- params$data %>%
+  filter(Variable %in% race_vars) %>% 
+  #reorder to display correctly in table
+  arrange(factor(Variable, levels=unique(as.character(race_data_nh$Variable))))
+```
+
+### Summary Tables
+
+<br>
+<br>
+
+In this table, Hispanic or Latino is included as a separate category, regardless of any other race or ethnicity selected.
+
+```{r race_table_nh, echo=FALSE}
+#display the table
+#head(race_data_nh, n=length(race_vars_nh))
+flextable(race_data_nh) %>% 
+  set_caption("Population by Race and Ethnicity (%)") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+```{r race_table, echo=FALSE}
+#display the table
+#head(race_data, n=length(race_vars))
+flextable(race_data) %>% 
+  set_caption("Population by Race and Ethnicity (%)") %>%
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+### Summary Charts
+
+<br>
+<br>
+
+In this chart, Hispanic or Latino is included as a separate category, regardless of any other race or ethnicity selected.
+
+```{r race_graph_nh, echo=FALSE, fig.id = "tsplot"}
+#display the chart
+race_chart_nh <-
+  ms_barchart(
+  data = race_data_nh %>% 
+    pivot_longer(2:4) %>% 
+    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))), 
+  x = "name",
+  y = "value", group = "Variable"
+  ) %>% 
+  as_bar_stack(dir = "horizontal") %>% 
+  chart_labels(title = "Population by Race and Ethnicity", xlab = "", ylab = "Percent of Population") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%", limit_max = 100) %>%
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_y_rot = 0) %>% 
+  #make the colors color blind friendly
+  chart_data_fill(c("American Indian and Alaska Native alone" = "#88ccee", 
+                    "Asian alone" = "#44aa99",
+                    "Black or African American alone" = "#117733", 
+                    "Hispanic or Latino (any race)" = "#332288",
+                    "Native Hawaiian and other Pacific Islander alone" = "#ddcc77",
+                    "Some other race alone" = "#999933",
+                    "Two or more races" = "#cc6677",
+                    "White alone" = "#882255"
+               )) %>% 
+  #these data labels need custom formatting to be readable
+  chart_data_labels(num_fmt = "0.0\\%", position = "ctr", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+
+
+insert_chart(race_chart_nh, "race_nh")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+```{r race_graph, echo=FALSE, fig.id = "tsplot"}
+#display the chart
+race_chart <-
+  ms_barchart(
+  data = race_data %>% 
+    #remove hispanic/latino category, doesn't add up to 100% otherwise
+    filter(Variable != "Hispanic or Latino (any race)") %>% 
+    pivot_longer(2:4) %>% 
+    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))), 
+  x = "name",
+  y = "value", group = "Variable"
+  ) %>% 
+  as_bar_stack(dir = "horizontal") %>% 
+  chart_labels(title = "Population by Race and Ethnicity", xlab = "", ylab = "Percent of Population") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%", limit_max = 100) %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_y_rot = 0) %>% 
+  #make the colors more accessible
+  chart_data_fill(c("American Indian and Alaska Native alone" = "#88ccee", 
+                    "Asian alone" = "#44aa99",
+                    "Black or African American alone" = "#117733", 
+                    "Native Hawaiian and other Pacific Islander alone" = "#332288",
+                    "Some other race alone" = "#ddcc77",
+                    "Two or more races" = "#999933",
+                    "White alone" = "#cc6677"
+               )) %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "ctr", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+
+
+insert_chart(race_chart, "race")
+
+iterate_progress_bar()
+```
+Source: 2020 Decennial census data
+
+\newpage
+
+
+## Education
+
+<br>
+<br>
+
+### Summary Table
+
+<br>
+<br>
+
+
+```{r education_data, include=FALSE}
+#select the correct data
+education_data <- params$data %>%
+  filter(Variable %in% education_vars)
+  
+```
+
+```{r education_table, echo=FALSE}
+#display the table
+#head(education_data, n=length(education_vars))
+flextable(education_data) %>% 
+  set_caption("Educational Attainment for Population 25+ (%)") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data 
+
+\newpage
+
+### Summary Chart
+
+<br>
+<br>
+
+```{r education_graph, echo=FALSE, fig.id = "tsplot"}
+#display the chart
+education_chart <-
+  ms_barchart(
+  data = education_data %>% 
+    pivot_longer(2:4) %>% 
+    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))) %>% 
+    mutate(Variable = factor(Variable, levels = education_vars)), 
+  x = "name",
+  y = "value", group = "Variable"
+  ) %>% 
+  as_bar_stack(dir = "horizontal") %>% 
+  chart_labels(title = "Educational Attainment for Population 25+", xlab = "", ylab = "Percent of Population") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%",  limit_max = 100) %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_y_rot = 0) %>% 
+  chart_data_fill(c("Less than 9th grade" = "#88ccee", 
+  "9th to 12th grade, no diploma" = "#44aa99", 
+  "High school graduate (or equivalent)" = "#117733", 
+  "Some college, no degree" = "#332288", 
+  "Associate's degree" = "#ddcc77", 
+  "Bachelor's degree" = "#999933", 
+  "Graduate or professional degree" = "#cc6677"
+  )) %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "ctr", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(education_chart, "edu")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+## Income
+
+<br>
+<br>
+
+### Summary Chart
+
+<br>
+<br>
+
+```{r median_income, echo=FALSE}
+#graph for median income
+median_income_data <- params$data %>%
+  filter(Variable %in% c("Median household income in the past 12 months (in 2022 inflation-adjusted dollars)", "Median family income in the past 12 months (in 2022 inflation-adjusted dollars)")) %>%
+  mutate(Variable = case_when(Variable == "Median household income in the past 12 months (in 2022 inflation-adjusted dollars)" ~ "Median Household Income",
+         Variable == "Median family income in the past 12 months (in 2022 inflation-adjusted dollars)" ~ "Median Family Income")) %>%
+  pivot_longer(2:4)
+
+#display the chart
+median_income_chart <-
+  ms_barchart(
+  data = median_income_data %>% 
+    mutate(name = factor(name, levels=c(params$muni, "Dane County", "State of Wisconsin"))),
+  x = "Variable",
+  y = "value", group = "name"
+  ) %>%
+  chart_labels(title = "Median Income in the past 12 months (in 2022 inflation-adjusted dollars)", xlab = "", ylab = "Income") %>% 
+  chart_settings(overlap = -5) %>% 
+  chart_ax_y(num_fmt = "$#,##0") %>% 
+  chart_data_labels(num_fmt = "$#,###", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data) %>% 
+  set_theme(chart_default_theme)
+
+insert_chart(median_income_chart, "med_income")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+### Municipality Income Distribution
+
+<br>
+<br>
+
+```{r income_brackets, echo=FALSE}
+#graph for income distribution
+income_dist_data <- params$data %>%
+  slice(101:116) %>%
+  pivot_longer(2:4) %>% 
+   #order correctly
+  mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))) %>% 
+  filter(name == params$muni)
+
+#display the chart
+income_dist_chart <-
+  ms_barchart(
+  data = income_dist_data,
+  x = "Variable",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Household Income in the Past 12 Months (in 2022 Inflation-Adjusted Dollars)", xlab = "Income", ylab = "Percent of Population") %>% 
+  chart_settings(dir = "horizontal") %>%
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0, legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(income_dist_chart, "income_dist")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+## Poverty
+
+<br>
+<br>
+
+```{r poverty, echo=FALSE}
+#graph for poverty
+poverty_data <- params$data %>% 
+  filter(Variable %in% poverty_vars) %>% 
+  pivot_longer(2:4)
+
+#display the chart
+poverty_chart <-
+  ms_barchart(
+  data = poverty_data %>% 
+    mutate(name = factor(name, levels=c(params$muni, "Dane County", "State of Wisconsin"))),
+  x = "Variable",
+  y = "value", group = "name"
+  ) %>%
+  chart_labels(title = "Poverty Rates by Age", xlab = "", ylab = "Percent of Population") %>% 
+  chart_settings(overlap = -5) %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(poverty_chart, "poverty")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+
+\newpage
+
+# Labor Force & Employment
+
+<br>
+<br>
+
+## Unemployment
+
+<br>
+<br>
+
+```{r unemployment, echo=FALSE}
+#graph for unemployment
+unemployment_data <- params$data %>% 
+  filter(Variable == "Percent unemployment") %>% 
+  pivot_longer(2:4)
+
+#display the chart
+unemployment_chart <-
+  ms_barchart(
+  data = unemployment_data,
+  x = "name",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Unemployment Rate (16 year olds and older)", xlab = "", ylab = "Percent of Population") %>%
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,###.0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(unemployment_chart, "unemployment")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+## Industry
+<br>
+<br>
+
+```{r industry, echo=FALSE}
+#graph for industry employment
+industry_data <- params$data %>% 
+  slice(120:132) %>% 
+  pivot_longer(2:4)
+
+#display the chart
+industry_chart <-
+  ms_barchart(
+  data = industry_data %>% 
+    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))),
+  x = "Variable",
+  y = "value", group = "name"
+  ) %>%
+  chart_labels(title = "Employment by Industry (16+ years old)", xlab = "Industry", ylab = "Percent of Population") %>% 
+  chart_settings(dir = "horizontal", overlap = -50) %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
+  chart_ax_y(num_fmt = "#,##0\\%")
+
+insert_chart(industry_chart, "industry")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+## Labor Force
+
+<br>
+<br>
+
+```{r labor_force, echo=FALSE}
+#graph for labor force participation
+labor_data <- params$data %>% 
+  filter(Variable == "Labor force participation") %>% 
+  pivot_longer(2:4)
+
+#display the chart
+labor_chart <-
+  ms_barchart(
+  data = labor_data,
+  x = "name",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Labor Force Participation Rate (Population 16+ Years Old)", xlab = "", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(limit_min = 0) %>% 
+  chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(labor_chart, "labor")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+# Housing
+
+<br>
+<br>
+
+## Housing Stock Characteristics
+
+<br>
+<br>
+
+```{r housing_unit_chart, echo = FALSE}
+housing_unit_data <- params$data %>% 
+  filter(Variable %in% housing_unit_vars) %>% 
+  mutate(Variable = case_when(Variable == "Housing units" ~ "2020 Housing units",
+                              Variable == "2010_Housing units" ~ "2010 Housing units",
+                              Variable == "2000_Housing units" ~ "2000 Housing units")) 
+
+flextable(housing_unit_data %>%
+   #format with comma thousand separator
+    mutate(across(2:4, ~ str_trim(format(.x, big.mark = ",", scientific = FALSE))))) %>% 
+    set_caption("Number of Housing Units by Decade") %>% 
+    autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: 2020, 2010, 2000 Decennial census data
+
+\newpage
+
+```{r housing_unit_graph, echo = FALSE}
+
+#display the chart
+housing_unit_chart <-
+  ms_barchart(
+  data = housing_unit_data %>% 
+    #only use the muni data
+    pivot_longer(2:2) %>% 
+    #rename and reorder the years
+    mutate(Variable = substr(Variable, 1, 4)) %>% 
+    arrange(Variable) %>% 
+    mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
+  x = "Variable",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Number of Housing Units", xlab = "Year", ylab = "Total Housing Units") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,##0") %>% 
+  chart_data_labels(num_fmt = "#,###", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+
+insert_chart(housing_unit_chart, "housing_unit")
+
+iterate_progress_bar()
+```
+Source: 2020, 2010, 2000 Decennial census data
+
+\newpage
+
+```{r housing_age_table, echo = F}
+#table for housing stock age
+
+structure_age_data <- params$data %>% 
+  slice(133:142)
+
+flextable(structure_age_data %>%
+   #only use muni data
+     select(1:2) %>% 
+   #format with comma thousand separator
+      mutate(across(2:2, ~ str_trim(format(.x, big.mark = ",", scientific = FALSE))))) %>% 
+   set_caption("Age of Housing Stock (%)") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+
+\newpage
+
+
+```{r housing_age_graph, echo=FALSE, fig.id = "tsplot"}
+#graph for housing stock age
+
+#display the chart
+structure_age_chart <-
+  ms_barchart(
+  data = structure_age_data %>% pivot_longer(2:2),
+  x = "Variable",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Age of Housing Stock", xlab = "Year Built", ylab = "Percent of Housing Stock") %>% 
+  chart_settings(dir = "horizontal", overlap = -50) %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(title_x_rot = 270, title_y_rot = 0, legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+
+insert_chart(structure_age_chart, "structure_age")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+```{r housing_unit_type_table, echo = F}
+#table for housing stock age
+
+structure_type_data <- params$data %>% 
+ filter(Variable %in% structure_type_vars) 
+
+flextable(structure_type_data) %>% 
+   set_caption("Housing Unit Structure Type (%)") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+
+
+\newpage
+
+## Occupancy Characteristics
+
+<br>
+<br>
+
+```{r homeownership, echo=FALSE}
+#graph for homeownership
+homeowner_data <- params$data %>% 
+  filter(Variable == "Owner occupied") %>% 
+  pivot_longer(2:4)
+
+#display the chart
+homeowner_chart <-
+  ms_barchart(
+  data = homeowner_data,
+  x = "name",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Homeownership Rate", xlab = "", ylab = "Percent of Population") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(limit_min = 0) %>% 
+  chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+
+insert_chart(homeowner_chart, "homeowner")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+```{r home_value, echo=FALSE}
+#graph for median home value
+home_value_data <- params$data %>%
+  filter(Variable == "Median home value") %>% 
+  pivot_longer(2:4)
+
+#display the chart
+home_value_chart <-
+  ms_barchart(
+  data = home_value_data,
+  x = "name",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Median Home Value", xlab = "", ylab = "Value") %>% 
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "$#,##0") %>% 
+  chart_data_labels(num_fmt = "$#,###", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(home_value_chart, "home_value")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+```{r housing_vacancy_table, echo = F}
+#table for housing stock vacancy
+
+vacancy_data <- all_data %>% 
+ filter(Variable %in% vacancy_vars) 
+
+flextable(vacancy_data) %>% 
+   set_caption("Housing Vacancy (%)") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+## Housing Affordability
+
+<br>
+<br>
+
+```{r cost_burden_table, echo=FALSE}
+cost_burden_data <- params$data %>%
+  filter(Variable %in% cost_burden_vars)
+
+#display the table
+#head(cost_burden_data, n=length(cost_burden_vars))
+flextable(cost_burden_data) %>% 
+  set_caption("Cost Burdened Households Paying 30%+ of Income for Housing (%)") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+```{r cost_burden_graph, echo=FALSE}
+#graph for cost burden
+cost_burden_data <- cost_burden_data %>%
+  select(1:2) %>% 
+  pivot_longer(2:2)
+
+#display the chart
+cost_burden_chart <-
+  ms_barchart(
+  data = cost_burden_data,
+  x = "Variable",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Cost Burdened Households Paying 30%+ of Income for Housing", xlab = "", ylab = "Percent of Population") %>%
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(cost_burden_chart, "cost_burden")
+
+iterate_progress_bar()
+```
+Source: `r acs_cur_year` 5-year ACS data
+
+\newpage
+
+
+# Census Reporting
+
+The American Community Survey (ACS) surveys a sample of the U.S. population, so includes a margin of error for each estimate. The estimate, margin of error (MOE), coefficient of variation (CV), and interpreted reliability are reported for each variable below. 
+
+<br>
+
+If a variable estimate was 0, the CV was set to 100% as suggested by Census Bureau guidelines. The reliability was calculated based on the CV: a CV of 12% or less was assigned high reliability; a CV above 12% but less than or equal to 40% was assigned medium reliability; a CV of more than 40% was assigned low reliability. This follows the ESRI methodology for quantifying reliability (https://www.esri.com/arcgis-blog/products/arcgis-living-atlas/mapping/margins-of-error-and-mapping/).
+
+<br>
+
+More information about the Census Bureau methodology can be found here: https://www.census.gov/content/dam/Census/library/publications/2018/acs/acs_general_handbook_2018_ch08.pdf. Note that the Decennial Census is a full population survey, so contains no reported margin of error.
+
+<br>
+<br>
+
+## Municipality
+<br>
+<br>
+
+```{r moe_muni, echo=FALSE}
+head(params$moe_reports$muni, n=nrow(params$moe_reports$muni))
+# flextable(params$moe_reports$muni) %>% 
+#   autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+
+
+## County
+<br>
+<br>
+
+```{r moe_county, echo=FALSE}
+head(params$moe_reports$county, n=nrow(params$moe_reports$county))
+# flextable(params$moe_reports$county) %>% 
+#   autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+
+
+## State
+<br>
+<br>
+
+```{r moe_state, echo=FALSE}
+head(params$moe_reports$state, n=nrow(params$moe_reports$state))
+# flextable(params$moe_reports$state) %>% 
+#   autofit(add_w = 0)
+
+iterate_progress_bar()
+```
