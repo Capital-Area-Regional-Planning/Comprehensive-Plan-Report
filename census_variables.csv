@@ -114,8 +114,8 @@ Household Median Income,"$100,000 to $124,999",ACS,B19001_014/B19001_001
 Household Median Income,"$125,000 to $149,999",ACS,B19001_015/B19001_001
 Household Median Income,"$150,000 to $199,999",ACS,B19001_016/B19001_001
 Household Median Income,"$200,000 or more",ACS,B19001_017/B19001_001
-Household Median Income,Median household income in the past 12 months (in 2022 inflation-adjusted dollars),ACS,B19013_001
-Family Median Income,Median family income in the past 12 months (in 2022 inflation-adjusted dollars),ACS,B19113_001
+Household Median Income,Median household income in the past 12 months (in 2023 inflation-adjusted dollars),ACS,B19013_001
+Family Median Income,Median family income in the past 12 months (in 2023 inflation-adjusted dollars),ACS,B19113_001
 Unemployment,Percent unemployment,ACS,S2301_C04_001
 Employment by Industry ,"Agriculture, forestry, fishing and hunting, and mining",ACS,S2403_C01_002/S2403_C01_001
 Employment by Industry ,Construction,ACS,S2403_C01_005/S2403_C01_001
@@ -155,7 +155,7 @@ Housing Unit Type,Multiple family,ACS,(B25024_004 + B25024_005 + B25024_006 + B2
 Housing Unit Type,Mobile home/other,ACS,(B25024_010 + B25024_011)/B25024_001
 Housing Vacancy Rate,Homeowner vacancy,ACS,DP04_0004
 Housing Vacancy Rate,Rental vacancy,ACS,DP04_0005
-Average Household Size,2022 average household size,ACS,DP02_0016
+Average Household Size,2023 average household size,ACS,DP02_0016
 Population,population_1970,Decennial 1970,From IPUMs data
 Population,population_1980,Decennial 1980,From IPUMs data
 Population,population_1990,Decennial 1990,From IPUMs data

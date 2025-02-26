@@ -13,12 +13,32 @@ library(flextable)
 
 # To deploy, run: rsconnect::deployApp()
 
-ui <- fluidPage(
-    selectInput("muni_choices", "Select a municipality:", muni_choice_list),
-   # selectInput("neighbor_choices", "Select neighboring municipalities:", muni_choice_list, multiple = T),
-    downloadButton("download_word_document", "Download")
-  )
-  
+#addResourcePath("www", paste0(here::here(), "/inst/www"))
+
+ui <- 
+  fluidPage(
+    tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
+  navbarPage(
+    #title = "CARPC Census Cruncher",
+    title = div("", img(src = "carpc_logo.svg", height = "50px", width = "100px", style = "position: relative; margin:-15px 0px; display:right-align;")),
+    tabPanel(
+      title = "Census Cruncher",
+      HTML("<p>Download formatted census data for any city, village, or town in Dane County, WI. 
+         The editable Microsoft Word (.docx) report contains tables and graphs for creating comprehensive plans
+         or conducting other analysis. </p>"),
+      br(),
+      selectInput("muni_choices", "Select a municipality:", muni_choice_list),
+      # selectInput("neighbor_choices", "Select neighboring municipalities:", muni_choice_list, multiple = T),
+      downloadButton("download_word_document", "Download")
+    ),
+    tabPanel(
+      title = "FAQ",
+      #TODO - below is what's causing upload to error out
+      #includeHTML doesn't work well within a navbarPage, so this is a workaround
+      tags$iframe(src = "faq.html", width="100%", height="500", scrolling="no", seamless="seamless", frameBorder="0")
+    )))
+
 server <- function(input, output) {
     output$download_word_document <- downloadHandler(
       # For PDF output, change this to "report.pdf"

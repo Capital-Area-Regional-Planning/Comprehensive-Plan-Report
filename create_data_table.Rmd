@@ -1,0 +1,1259 @@
+---
+title: "Create Data Table"
+output: html_document
+date: "2025-02-26"
+---
+
+To update to the next year for acs data:
+1. change label to the current year of any acs variables in census_variables.csv
+(family income, household income)
+2. run the chunks related to acs in this script
+3. change acs_cur_year variable in template.Rmd
+
+import libraries
+```{r}
+library(dplyr)
+library(here)
+library(sf)
+library(tidycensus)
+library(stringr)
+library(tidyr)
+```
+
+Set the geography and census years
+```{r geography and year}
+#geography parameters
+state <- c("WI")
+county <- c("Dane")
+
+#the year of the most recent decennial census
+decennial_cur <- 2020
+
+#the year of the most recent ACS census
+acs_year <- 2023
+
+#the year of the last decennial census
+decennial_last <- 2010
+
+```
+
+
+Create the list of municipality choices and a crosswalk to translate to census names
+```{r muni choices}
+#the municipal borders
+muni_shp <- read_sf(paste0(here::here(), "/data/MunicipalBoundaries/Municipal_Boundaries.shp"))
+
+#the choice of names for the user
+muni_choice_list <- unique(muni_shp$NAME) %>%
+  sort()
+
+#translate normal muni names to census names
+muni_crosswalk <- decennial_data %>%
+  select(NAME) %>%
+  distinct() %>%
+  mutate(census_name = NAME) %>%
+  separate_wider_delim(NAME, ",", names=c("muni", "city", "state")) %>%
+  mutate(type = paste(str_to_sentence(word(muni,-1)), "of ")) %>%
+  mutate(muni = word(muni, 1, -2)) %>%
+  mutate(muni_name = paste0(type, muni)) %>%
+  select(muni_name, census_name)
+```
+
+Set the census variable codes that will be pulled for each report section
+```{r decennial census variables}
+
+#Hispanic or Latino not included in other categories
+decennial_var_race <- c(
+  "P2_005N", # white nh
+  "P2_006N", # black nh
+  "P2_007N", # amin nh
+  "P2_008N", # asian nh
+  "P2_009N", # hawaiian pi nh
+  "P2_010N", # some other nh
+  "P2_011N", # 2+ nh
+  "P2_002N" # hispanic
+)
+
+#Hispanic or Latino is included in other categories
+decennial_var_race_2 <- c(
+  "P1_003N", # white
+  "P1_004N", # black
+  "P1_005N", # amin
+  "P1_006N", # asian
+  "P1_007N", # hawaiian pi
+  "P1_008N", # some other
+  "P1_009N" # 2+
+)
+
+
+decennial_var_gender_age <- c(
+  #male
+  "DP1_0025C",
+  #female
+  "DP1_0049C",
+  #median age
+  "DP1_0073C",
+  #male, 18+
+  "DP1_0045C",
+  #male, 65+
+  "DP1_0048C",
+  #female, 18+
+  "DP1_0069C",
+  #female, 65+
+  "DP1_0072C"
+)
+
+decennial_var_gender_age_graph <- c(
+  #male age groups
+  paste0("DP1_00", c(26:43), "C"),
+  #female age groups
+  paste0("DP1_00", c(50:67), "C")
+)
+```
+
+```{r acs census variables}
+acs_var_education <- c(
+  #all education variables
+  paste0("B15003_00", c(1:9)),
+  paste0("B15003_0", c(10:25))
+)
+
+acs_var_income <- c(
+  #Median Household Income
+  "B19013_001",
+  #Median Family Income
+  "B19113_001",
+  #Household income brackets
+  #TODO - there are also family income brackets - use one or both?
+  paste0("B19001_00", c(2:9)),
+  paste0("B19001_01", c(0:7))
+)
+
+acs_var_poverty <- c(
+  #under 18 poverty
+  "S1701_C02_002",
+  #under 18 total
+  "S1701_C01_002",
+  #18-64 years poverty
+  "S1701_C02_006",
+  #18-64 years total
+  "S1701_C01_006",
+  #65+ poverty
+  "S1701_C02_010",
+  #65+ total
+  "S1701_C01_010"
+)
+
+acs_var_employment <- c(
+  #Employment/Population Ratio!!Population 16 years and over
+  "S2301_C04_001",
+  #all industry information
+  paste0("S2403_C01_00", c(2, 5:9)),
+  paste0("S2403_C01_0", c(12:13, 16, 20, 23, 26:27))
+)
+
+acs_var_structure_year <- c(
+  paste0("B25034_00", 2:9),
+  paste0("B25034_0", 10:11)
+)
+
+acs_var_homeowner <- c(
+  #percent owner occupied housing units
+  "DP04_0046P"
+)
+
+acs_var_home_value <- c(
+  #median value owner occupied housing units
+  "DP04_0089"
+)
+
+acs_var_cost_burden <- c(
+  #renters paying 30+ percent of income
+  "DP04_0141", "DP04_0142",
+  #total renters
+  "DP04_0136",
+  #mortgage holders paying 30+ percent of income
+  "DP04_0114", "DP04_0115",
+  #total mortgage holders
+  "DP04_0093",
+  #non mortgage holders paying 30+ percent of income
+  "DP04_0123", "DP04_0124",
+  #total non mortgage holders
+  "DP04_0102"
+)
+
+acs_var_labor <- c(
+  #Labor Force Participation Rate (16+)
+  "S2301_C02_001"
+)
+
+acs_var_structure_type <- c(
+  paste0("B25024_00", 1:9),
+  "B25024_010", "B25024_011"
+)
+
+acs_var_vacancy <- c(
+  #homeowner vacancy rate
+  "DP04_0004",
+  #rental vacancy rate
+  "DP04_0005"
+)
+
+acs_var_avg_hh <- c(
+  "DP02_0016"
+)
+```
+
+Pull the census data
+```{r get decennial data}
+
+#get gender and age info for the table
+get_decennial_gender_age <- function(geo_type, year) {
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = decennial_var_gender_age,
+    year = year,
+    output = "wide",
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "dp"
+  ) %>%
+    rename(
+      count_male = DP1_0025C,
+      count_female = DP1_0049C,
+      median_age = DP1_0073C,
+      count_male_18plus = DP1_0045C,
+      count_male_65plus = DP1_0048C,
+      count_female_18plus = DP1_0069C,
+      count_female_65plus = DP1_0072C
+    ) %>%
+    mutate(per_male = count_male/(count_male + count_female),
+           per_female = count_female/(count_male + count_female),
+           per_18under = 1 - ((count_male_18plus + count_female_18plus)/(count_male + count_female)),
+           per_65over = (count_male_65plus + count_female_65plus)/(count_male + count_female)) %>%
+    mutate(across(starts_with("per_"), ~.x*100)) %>%
+    select(GEOID, NAME, median_age, starts_with("per_")) %>% 
+    rename(
+      `Median age` = median_age,
+      `Percent under 18` = per_18under,
+      `Percent 65 and over` = per_65over,
+      `Percent female` = per_female,
+      `Percent male` = per_male
+    ) %>% 
+    select(1:2, `Median age`,  `Percent under 18`, `Percent 65 and over`, `Percent female`, `Percent male`)
+  
+  return(census_data)
+}
+
+decennial_data_age_cur <- get_decennial_gender_age("county subdivision", decennial_cur)
+decennial_data_age_county <- get_decennial_gender_age("county", decennial_cur)
+decennial_data_age_state <- get_decennial_gender_age("state", decennial_cur)
+
+#get gender and age info for the graph
+get_decennial_gender_age_graph <- function(geo_type, year) {
+  
+  var_names <- load_variables(year, "dp", cache = TRUE)
+  
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = decennial_var_gender_age_graph,
+    summary_var = "DP1_0001C",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "dp"
+  ) %>%
+    mutate(percent = value/summary_value * 100) %>%
+    #rename
+    left_join(var_names %>% select(name, label), join_by(variable == name)) %>%
+    select(-variable) %>%
+    separate_wider_delim(label, "!!", names=c("a", "b", "group", "var")) %>%
+    mutate(variable = paste0(group, " ", var)) %>%
+    select(GEOID, NAME, variable, value, percent) %>%
+    pivot_wider(names_from = variable, values_from = c(value, percent))
+  
+  return(census_data)
+}
+
+decennial_data_age_graph_cur <- get_decennial_gender_age_graph("county subdivision", decennial_cur)
+decennial_data_age_graph_county <- get_decennial_gender_age_graph("county", decennial_cur)
+decennial_data_age_graph_state <- get_decennial_gender_age_graph("state", decennial_cur)
+
+#get race and ethnicity info (not including hispanic/latino in other categories)
+get_decennial_race_nh <- function(geo_type, year) {
+  
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = decennial_var_race,
+    summary_var = "P1_001N",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F
+  ) %>%
+    pivot_wider(names_from = variable, values_from = value) %>%
+    mutate(across(4:11, ~ .x / summary_value * 100)) %>%
+    select(1:2, P2_007N, P2_008N, P2_006N, P2_002N, P2_009N, P2_005N, P2_010N, P2_011N, summary_value) %>% 
+      rename(
+        Population = summary_value,
+        `nh_White alone` = P2_005N,
+        `nh_Black or African American alone` = P2_006N,
+        `nh_American Indian and Alaska Native alone` = P2_007N,
+        `nh_Asian alone` = P2_008N,
+        `nh_Native Hawaiian and other Pacific Islander alone` = P2_009N,
+        `nh_Some other race alone` = P2_010N,
+        `nh_Two or more races` = P2_011N,
+        `Hispanic or Latino (any race)` = P2_002N
+      )
+  
+  return(census_data)
+  
+}
+
+decennial_data_race_nh_cur <- get_decennial_race_nh("county subdivision", decennial_cur)
+decennial_data_race_nh_county <- get_decennial_race_nh("county", decennial_cur)
+decennial_data_race_nh_state <- get_decennial_race_nh("state", decennial_cur)
+
+#get race and ethnicity info (including hispanic/latino in other categories)
+get_decennial_race <- function(geo_type, year) {
+  
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = decennial_var_race_2,
+    summary_var = "P1_001N",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F
+  ) %>%
+    pivot_wider(names_from = variable, values_from = value) %>%
+    mutate(across(4:10, ~ .x / summary_value * 100)) %>%
+    select(1:2, P1_005N, P1_006N, P1_004N, P1_007N, P1_003N, P1_008N, P1_009N) %>% 
+    rename(
+      `White alone` = P1_003N,
+      `Black or African American alone` = P1_004N,
+      `American Indian and Alaska Native alone` = P1_005N,
+      `Asian alone` = P1_006N,
+      `Native Hawaiian and other Pacific Islander alone` = P1_007N,
+      `Some other race alone` = P1_008N,
+      `Two or more races` = P1_009N
+    )
+  
+  return(census_data)
+  
+}
+
+decennial_data_race_cur <- get_decennial_race("county subdivision", decennial_cur)
+decennial_data_race_county <- get_decennial_race("county", decennial_cur)
+decennial_data_race_state <- get_decennial_race("state", decennial_cur)
+
+
+#get housing unit count
+get_decennial_housing_units <- function(geo_type, year) {
+  
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = "H1_001N",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "dhc"
+  ) %>%
+    select(-variable) %>% 
+    rename(`Housing units` = value)
+  
+  return(census_data)
+}
+
+decennial_data_housing_units_cur <- get_decennial_housing_units("county subdivision", decennial_cur)
+decennial_data_housing_units_county <- get_decennial_housing_units("county", decennial_cur)
+decennial_data_housing_units_state <- get_decennial_housing_units("state", decennial_cur)
+```
+
+```{r acs utility functions}
+#create estimate and moe sums for wide output census data
+#sum_names is a vector of summed column names
+#sum_cols is a list of vectors specifying which columns to sum
+#the first item in sum_names is assigned as the column name for the first vector in sum_cols, etc
+get_est_moe_sums <- function(df, sum_names, sum_cols) {
+  
+  for (i in 1:length(sum_names)) {
+  
+  #create an expression for the estimate sum
+  sum_est <- paste0(sum_cols[[i]], collapse = "E+") %>% 
+    paste0("E") %>% 
+    parse(text = .)
+  
+  #parameters for the moe_sum function
+  moe_sum_est <- paste0("c(", paste0(sum_cols[[i]], collapse = "E,"), "E)") %>% 
+    parse(text = .)
+  
+  moe_sum_moe <- paste0("c(", paste0(sum_cols[[i]], collapse = "M,"), "M)") %>% 
+    parse(text = .)
+    
+  #add in the new aggregate columns
+  df <- df %>% 
+    mutate(
+    !!(paste0("est_", sum_names[i])) := eval(sum_est)) %>% 
+    rowwise() %>% 
+    mutate(
+    !!(paste0("moe_", sum_names[i])) := moe_sum(moe = eval(moe_sum_moe), estimate = eval(moe_sum_est))
+  )
+  
+}
+  
+  return (df)
+}
+
+#function to transform a wide census df for easier proportion calculations
+wide_to_narrow <- function(df) {
+  
+  narrow_df <- df %>% 
+    select(GEOID, NAME, summary_est, summary_moe, starts_with("est")) %>% 
+    pivot_longer(
+      cols = c(starts_with("est")),
+      names_to = "variable",
+      names_prefix = "est_",
+      values_to = "estimate"
+    ) %>% 
+    left_join(
+      df %>% 
+        select(GEOID, starts_with("moe")) %>% 
+        pivot_longer(
+          cols = c(starts_with("moe")),
+          names_to = "variable",
+          names_prefix = "moe_",
+          values_to = "moe"
+        ),
+      join_by(variable == variable, GEOID == GEOID)
+    )
+  
+  return (narrow_df)
+}
+
+#calculate cv and reliability
+get_cv_reliability <- function(df) {
+  
+  df <- df %>% 
+    mutate(
+      cv = case_when(estimate_prop == 0 | is.nan(estimate_prop) ~ 100,
+                     TRUE ~  moe_prop / 1.645 / estimate_prop * 100),
+      reliability = case_when(cv <= 12 ~ "High",
+                              cv > 12 & cv <= 40 ~ "Medium",
+                              cv > 40 ~ "Low",
+                       TRUE ~ "error"))
+  
+  return (df)
+}
+
+#create an estimate table
+get_estimate_table <- function(df) {
+  
+  estimate_table <- df %>% 
+    select(GEOID, NAME, estimate_prop, variable) %>% 
+    rename(estimate = estimate_prop) %>% 
+    pivot_wider(names_from = variable, values_from = estimate)
+  
+  return (estimate_table)
+}
+
+#create a moe table
+get_moe_table <- function(df) {
+  
+  moe_table <- df %>% 
+    select(GEOID, NAME, estimate_prop, moe_prop, cv, reliability, variable) %>% 
+    rename(estimate = estimate_prop,
+           moe = moe_prop)
+  
+  return (moe_table)
+}
+```
+
+```{r get acs data}
+
+#educational info
+get_acs_education <- function(geo_type, year) {
+  
+  census_data_step1 <- get_acs(
+    geography = geo_type,
+    variables = acs_var_education,
+    year = year,
+    output = "wide",
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>%
+    get_est_moe_sums(
+      sum_names = c("less_9th", "no_diploma_9th_12th", "high_school_equivalent", "some_college", "associate", "bachelor", "graduate"),
+      sum_cols = list(
+        c("B15003_002", "B15003_003", "B15003_004", "B15003_005", "B15003_006", "B15003_007", "B15003_008", "B15003_009", "B15003_010", "B15003_011", "B15003_012"),
+        c("B15003_013", "B15003_014", "B15003_015", "B15003_016"),
+        c("B15003_017", "B15003_018"),
+        c("B15003_019", "B15003_020"),
+        c("B15003_021"),
+        c("B15003_022"),
+        c("B15003_023", "B15003_024", "B15003_025")
+      )
+    ) %>% 
+    rename(summary_est = B15003_001E,
+           summary_moe = B15003_001M)
+  
+  #transform data for easier MOE calculation
+    census_data_step2 <- census_data_step1 %>% 
+      wide_to_narrow() %>% 
+      mutate(
+        estimate_prop = estimate/summary_est * 100,
+        moe_prop = moe_prop(estimate, summary_est, moe, summary_moe)*100) %>% 
+        get_cv_reliability() %>% 
+      #rename variables
+      mutate(variable = case_when(variable == "less_9th" ~ "Less than 9th grade",
+                                  variable == "no_diploma_9th_12th" ~ "9th to 12th grade, no diploma",
+                                  variable == "high_school_equivalent" ~ "High school graduate (or equivalent)",
+                                  variable == "some_college" ~ "Some college, no degree",
+                                  variable == "associate" ~ "Associate's degree",
+                                  variable == "bachelor" ~ "Bachelor's degree",
+                                  variable == "graduate" ~ "Graduate or professional degree"))
+ 
+  estimate <- get_estimate_table(census_data_step2)
+  moe <- get_moe_table(census_data_step2)
+
+  return(list(estimate = estimate, moe = moe))
+  
+}
+
+acs_data_education_cur <- get_acs_education("county subdivision", acs_year)
+acs_data_education_county <- get_acs_education("county", acs_year)
+acs_data_education_state <- get_acs_education("state", acs_year)
+
+#income info
+get_acs_income <- function(geo_type, year) {
+  
+  var_names <- load_variables(acs_year, "acs5", cache = TRUE)
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_income,
+    summary_var = "B19001_001",
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    left_join(var_names %>% select(name, label), join_by(variable == name)) %>% 
+    mutate(label = case_when(variable %in% c("B19013_001", "B19113_001") ~ substr(label, 11, 100),
+                             TRUE ~ substr(label, 19, 100))) %>%
+    mutate(estimate_prop = case_when(variable %in% c("B19013_001", "B19113_001") ~ estimate,
+                                TRUE ~ estimate/summary_est * 100),
+           moe_prop = case_when(variable %in% c("B19013_001", "B19113_001") ~ moe,
+                                     TRUE ~ moe_prop(estimate, summary_est, moe, summary_moe)*100)) %>% 
+    get_cv_reliability() %>% 
+    select(-variable) %>% 
+    rename(variable = label)
+           
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+   
+}
+
+acs_data_income_cur <- get_acs_income("county subdivision", acs_year)
+acs_data_income_county <- get_acs_income("county", acs_year)
+acs_data_income_state <- get_acs_income("state", acs_year)
+
+#poverty info
+get_acs_poverty <- function(geo_type, year) {
+
+  census_data_step1 <- get_acs(
+    geography = geo_type,
+    variables = acs_var_poverty,
+    year = year,
+    #output = "wide",
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    mutate(var2 = substr(variable, 11, 13))
+  
+  #this is a little hacky but it works - probably a better way to do this
+  census_data_step2 <- census_data_step1 %>% 
+    filter(variable %in% c("S1701_C02_002", "S1701_C02_006", "S1701_C02_010")) %>% 
+    left_join(
+      census_data_step1 %>% 
+        filter(variable %in% c("S1701_C01_002", "S1701_C01_006", "S1701_C01_010")) %>%
+        select(-NAME, -variable) %>% 
+        rename(summary_est = estimate,
+               summary_moe = moe),
+      join_by(GEOID == GEOID, var2 == var2)
+    ) %>% 
+    select(-var2) %>% 
+    mutate(variable = case_when(variable == "S1701_C02_002" ~ "Poverty under 18 years",
+                                   variable == "S1701_C02_006" ~ "Poverty 18 to 64 years",
+                                   variable == "S1701_C02_010" ~ "Poverty 65 years and over")) %>% 
+    mutate(
+      estimate_prop = estimate/summary_est * 100,
+      moe_prop = moe_prop(estimate, summary_est, moe, summary_moe)*100) %>% 
+    get_cv_reliability()
+  
+  estimate <- get_estimate_table(census_data_step2)
+  moe <- get_moe_table(census_data_step2)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_poverty_cur <- get_acs_poverty("county subdivision", acs_year)
+acs_data_poverty_county <- get_acs_poverty("county", acs_year)
+acs_data_poverty_state <- get_acs_poverty("state", acs_year)
+
+#employment info
+get_acs_employment <- function(geo_type, year) {
+  
+  var_names <- load_variables(acs_year, "acs5/subject", cache = TRUE)
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_employment,
+    summary_var = "S2403_C01_001",
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    left_join(var_names %>% select(name, label), join_by(variable == name)) %>% 
+    mutate(label = case_when(variable != "S2301_C04_001" ~ str_replace(substr(label, 66, 200), ":", ""),
+                             TRUE ~ "Percent unemployment")) %>% 
+    mutate(estimate_prop = case_when(variable != "S2301_C04_001" ~ estimate/summary_est * 100,
+                                     TRUE ~ estimate),
+           moe_prop = case_when(variable != "S2301_C04_001" ~ moe_prop(estimate, summary_est, moe, summary_moe)*100,
+                                TRUE ~ moe)) %>% 
+    get_cv_reliability() %>% 
+    select(-variable) %>% 
+    rename(variable = label)
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+  
+}
+
+acs_data_employment_cur <- get_acs_employment("county subdivision", acs_year)
+acs_data_employment_county <- get_acs_employment("county", acs_year)
+acs_data_employment_state <- get_acs_employment("state", acs_year)
+
+#structure year info
+get_acs_structure_year <- function(geo_type, year) {
+  
+  var_names <- load_variables(acs_year, "acs5", cache = TRUE)
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_structure_year,
+    summary_var = "B25034_001",
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>%
+    mutate(
+      estimate_prop = estimate/summary_est * 100,
+      moe_prop = moe_prop(estimate, summary_est, moe, summary_moe)*100) %>% 
+      get_cv_reliability() %>% 
+    left_join(var_names %>% select(name, label), join_by(variable == name)) %>%
+    mutate(label = substr(label, 25, 200)) %>% 
+    select(-variable) %>% 
+    rename(variable = label)
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_structure_year_cur <- get_acs_structure_year("county subdivision", acs_year)
+acs_data_structure_year_county <- get_acs_structure_year("county", acs_year)
+acs_data_structure_year_state <- get_acs_structure_year("state", acs_year)
+
+#howeownership info
+get_acs_homeowner <- function(geo_type, year) {
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_homeowner,
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    mutate(variable = "Owner occupied") %>% 
+    rename(estimate_prop = estimate,
+           moe_prop = moe) %>% 
+    get_cv_reliability()
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_homeowner_cur <- get_acs_homeowner("county subdivision", acs_year)
+acs_data_homeowner_county <- get_acs_homeowner("county", acs_year)
+acs_data_homeowner_state <- get_acs_homeowner("state", acs_year)
+
+get_acs_home_value <- function(geo_type, year) {
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_home_value,
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    mutate(variable = "Median home value") %>% 
+    rename(estimate_prop = estimate,
+           moe_prop = moe) %>% 
+    get_cv_reliability()
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_home_value_cur <- get_acs_home_value("county subdivision", acs_year)
+acs_data_home_value_county <- get_acs_home_value("county", acs_year)
+acs_data_home_value_state <- get_acs_home_value("state", acs_year)
+
+#cost burden info
+get_acs_cost_burden <- function(geo_type, year) {
+  
+  census_data_step1 <- get_acs(
+    geography = geo_type,
+    variables = acs_var_cost_burden,
+    year = year,
+    output = "wide",
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    get_est_moe_sums(sum_names = c("renters", "mortgage_holders", "owned_home"), 
+                     sum_cols = list(c("DP04_0141", "DP04_0142"),
+                                     c("DP04_0114", "DP04_0115"),
+                                     c("DP04_0123", "DP04_0124"))) %>% 
+    select(GEOID, NAME, DP04_0136E, DP04_0136M, DP04_0093E, DP04_0093M, DP04_0102E, DP04_0102M, 21:26)
+    
+  
+  #transform data for easier MOE calculation
+  census_data_step2 <- census_data_step1 %>% 
+    select(!starts_with("moe")) %>% 
+    pivot_longer(
+      cols = c(starts_with("est")),
+      names_to = "variable",
+      names_prefix = "est_",
+      values_to = "estimate"
+    ) %>% 
+    #all have different denominators for calculating proportion, so can't use the utility function
+    mutate(summary_est = case_when(variable == "renters" ~ DP04_0136E,
+                                   variable == "mortgage_holders" ~ DP04_0093E,
+                                   variable == "owned_home" ~ DP04_0102E)) %>% 
+    mutate(summary_moe = case_when(variable == "renters" ~ DP04_0136M,
+                                   variable == "mortgage_holders" ~ DP04_0093M,
+                                   variable == "owned_home" ~ DP04_0102M)) %>% 
+    select(-c(3:8)) %>% 
+    left_join(
+      census_data_step1 %>% 
+        select(GEOID, starts_with("moe")) %>% 
+        pivot_longer(
+          cols = c(starts_with("moe")),
+          names_to = "variable",
+          names_prefix = "moe_",
+          values_to = "moe"
+        ),
+      join_by(variable == variable, GEOID == GEOID)
+    ) %>% 
+    mutate(
+      estimate_prop = estimate/summary_est * 100,
+      moe_prop = moe_prop(estimate, summary_est, moe, summary_moe)*100) %>% 
+    get_cv_reliability() %>% 
+    #rename variables
+    mutate(variable = case_when(variable == "renters" ~ "Renters",
+                     variable == "mortgage_holders" ~ "Mortgage holders",
+                     variable == "owned_home" ~ "Owned home"))
+  
+  estimate <- get_estimate_table(census_data_step2)
+  moe <- get_moe_table(census_data_step2)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_cost_burden_cur <- get_acs_cost_burden("county subdivision", acs_year)
+acs_data_cost_burden_county <- get_acs_cost_burden("county", acs_year)
+acs_data_cost_burden_state <- get_acs_cost_burden("state", acs_year)
+
+#labor force info
+get_acs_labor <- function(geo_type, year) {
+
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_labor,
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>%
+    mutate(variable = "Labor force participation") %>% 
+    rename(estimate_prop = estimate,
+           moe_prop = moe) %>% 
+    get_cv_reliability()
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_labor_cur <- get_acs_labor("county subdivision", acs_year)
+acs_data_labor_county <- get_acs_labor("county", acs_year)
+acs_data_labor_state <- get_acs_labor("state", acs_year)
+
+#building structure info
+get_acs_structure_type <- function(geo_type, year) {
+  
+  census_data_step1 <- get_acs(
+    geography = geo_type,
+    variables = acs_var_structure_type,
+    year = year,
+    output = "wide",
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    #calculate aggregate estimates
+    get_est_moe_sums(sum_names = c("1_unit_detached", "1_unit_attached", "multiple_family", "mobile_other"), 
+                     sum_cols = list(c("B25024_002"),
+                                     c("B25024_003"),
+                                     c("B25024_004", "B25024_005", "B25024_006", "B25024_007", "B25024_008", "B25024_009"),
+                                     c("B25024_010", "B25024_011"))) %>% 
+    select(GEOID, NAME, B25024_001E, B25024_001M, starts_with("est"), starts_with("moe")) %>% 
+    rename(summary_est = B25024_001E,
+           summary_moe = B25024_001M)
+    
+  #transform data for easier MOE calculation
+  census_data_step2 <- census_data_step1 %>% 
+    wide_to_narrow() %>% 
+    mutate(
+      estimate_prop = estimate/summary_est * 100,
+      moe_prop = moe_prop(estimate, summary_est, moe, summary_moe)*100) %>% 
+    get_cv_reliability() %>% 
+    #rename variables
+    mutate(variable = case_when(variable == "1_unit_detached" ~ "1 unit, detached",
+                                variable == "1_unit_attached" ~ "1 unit, attached",
+                                variable == "multiple_family" ~ "Multiple family",
+                                variable == "mobile_other" ~ "Mobile home/other"
+                                ))
+  
+  estimate <- get_estimate_table(census_data_step2) 
+  moe <- get_moe_table(census_data_step2) 
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_structure_type_cur <- get_acs_structure_type("county subdivision", acs_year)
+acs_data_structure_type_county <- get_acs_structure_type("county", acs_year)
+acs_data_structure_type_state <- get_acs_structure_type("state", acs_year)
+
+#vacancy info
+get_acs_vacancy <- function(geo_type, year) {
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_vacancy,
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>% 
+    mutate(variable = case_when(variable == "DP04_0004" ~ "Homeowner vacancy",
+                                variable == "DP04_0005" ~ "Rental vacancy")) %>% 
+    rename(estimate_prop = estimate,
+           moe_prop = moe) %>% 
+    get_cv_reliability()
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_vacancy_cur <- get_acs_vacancy("county subdivision", acs_year)
+acs_data_vacancy_county <- get_acs_vacancy("county", acs_year)
+acs_data_vacancy_state <- get_acs_vacancy("state", acs_year)
+
+#labor force info
+get_acs_avg_hh <- function(geo_type, year) {
+  
+  census_data <- get_acs(
+    geography = geo_type,
+    variables = acs_var_avg_hh,
+    year = year,
+    state = state,
+    county = county,
+    survey = "acs5",
+    geometry = F
+  ) %>%
+    mutate(variable = paste0(acs_year, " average household size")) %>% 
+    rename(estimate_prop = estimate,
+           moe_prop = moe) %>% 
+    get_cv_reliability()
+  
+  estimate <- get_estimate_table(census_data)
+  moe <- get_moe_table(census_data)
+  
+  return(list(estimate = estimate, moe = moe))
+}
+
+acs_data_avg_hh_cur <- get_acs_avg_hh("county subdivision", acs_year)
+acs_data_avg_hh_county <- get_acs_avg_hh("county", acs_year)
+acs_data_avg_hh_state <- get_acs_avg_hh("state", acs_year)
+```
+
+Get the 2010 census data
+```{r get data from the last decennial}
+
+decennial_last_var_gender_age <- c(
+  #male
+  "P012002",
+  #female
+  "P012026",
+  #median age
+  "P013001",
+  #male, under 18
+  paste0("P012A00", 3:6),
+  #male, 65+
+  paste0("P012A0", 20:25),
+  #female, under 18
+  paste0("P012A0", 27:30),
+  #female, 65+
+  paste0("P012A0", 44:49)
+)
+
+
+decennial_last_var_gender_age_graph <- c(
+  #male age groups
+  paste0("P01200", c(3:9)),
+  paste0("P0120", c(10:25)),
+  #female age groups
+  paste0("P0120", c(27:49))
+)
+
+#get gender and age info for the table
+get_decennial_last_gender_age <- function(geo_type, year) {
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = decennial_last_var_gender_age,
+    year = year,
+    output = "wide",
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "sf1"
+  ) %>%
+    rename(
+      count_male = P012002,
+      count_female = P012026,
+      median_age = P013001
+    ) %>%
+    mutate(count_male_18under = P012A003 + P012A004 + P012A005 + P012A006,
+           count_male_65plus = P012A020 + P012A021 + P012A022 + P012A023 + P012A024 + P012A025,
+           count_female_18under = P012A027 + P012A028 + P012A029 + P012A030,
+           count_female_65plus = P012A044 + P012A045 + P012A046 + P012A047 + P012A048 + P012A049,
+           pop_2010 = count_male + count_female) %>% 
+    mutate(per_male = count_male/pop_2010,
+           per_female = count_female/pop_2010,
+           per_18under = (count_male_18under + count_female_18under)/pop_2010,
+           per_65over = (count_male_65plus + count_female_65plus)/ pop_2010) %>%
+    mutate(across(starts_with("per_"), ~.x*100)) %>%
+    select(GEOID, NAME, median_age, starts_with("per_"), pop_2010) %>% 
+    rename(
+      `2010_Median age` = median_age,
+      `2010_Percent under 18` = per_18under,
+      `2010_Percent 65 and over` = per_65over,
+      `2010_Percent female` = per_female,
+      `2010_Percent male` = per_male,
+      population_2010 = pop_2010
+    ) %>% 
+    select(1:2, `2010_Median age`,  `2010_Percent under 18`, `2010_Percent 65 and over`, `2010_Percent female`, `2010_Percent male`, population_2010)
+  
+  return(census_data)
+}
+
+decennial_last_data_age_cur <- get_decennial_last_gender_age("county subdivision", decennial_last)
+decennial_last_data_age_county <- get_decennial_last_gender_age("county", decennial_last)
+decennial_last_data_age_state <- get_decennial_last_gender_age("state", decennial_last)
+
+#get gender and age info for the graph
+get_decennial_last_gender_age_graph <- function(geo_type, year) {
+  
+  var_names <- load_variables(decennial_last, "sf1", cache = TRUE)
+
+    census_data <- get_decennial(
+    geography = geo_type,
+    variables = decennial_last_var_gender_age_graph,
+    summary_var = "P012001",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "sf1"
+  ) %>% 
+    mutate(percent = value/summary_value * 100) %>%
+    #rename
+    left_join(var_names %>% select(name, label), join_by(variable == name)) %>%
+    select(-variable) %>%
+    separate_wider_delim(label, "!!", names=c("a", "group", "var")) %>%
+    mutate(variable = paste0("2010_percent_", group, " population ", var)) %>%
+    select(GEOID, NAME, variable, percent) %>%
+    pivot_wider(names_from = variable, values_from = percent) %>% 
+    #make the age brackets the same as the 2020 census
+    mutate(`2010_percent_Male population 15 to 19 years` = `2010_percent_Male population 15 to 17 years` +  `2010_percent_Male population 18 and 19 years`,
+           `2010_percent_Male population 20 to 24 years` = `2010_percent_Male population 20 years` + `2010_percent_Male population 21 years` + `2010_percent_Male population 22 to 24 years`,
+           `2010_percent_Male population 60 to 64 years` = `2010_percent_Male population 60 and 61 years` + `2010_percent_Male population 62 to 64 years`,
+           `2010_percent_Male population 65 to 69 years` = `2010_percent_Male population 65 and 66 years` + `2010_percent_Male population 67 to 69 years`,
+           `2010_percent_Female population 15 to 17 years` = `2010_percent_Female population 15 to 17 years` +  `2010_percent_Female population 18 and 19 years`,
+           `2010_percent_Female population 20 to 24 years` = `2010_percent_Female population 20 years` + `2010_percent_Female population 21 years` + `2010_percent_Female population 22 to 24 years`,
+           `2010_percent_Female population 60 to 64 years` = `2010_percent_Female population 60 and 61 years` + `2010_percent_Female population 62 to 64 years`,
+           `2010_percent_Female population 65 to 69 years` = `2010_percent_Female population 65 and 66 years` + `2010_percent_Female population 67 to 69 years`
+    ) %>% 
+      select(-`2010_percent_Male population 15 to 17 years`, -`2010_percent_Male population 18 and 19 years`, -`2010_percent_Male population 20 years`, 
+             -`2010_percent_Male population 21 years`, -`2010_percent_Male population 22 to 24 years`, -`2010_percent_Male population 60 and 61 years`, 
+             -`2010_percent_Male population 62 to 64 years`, -`2010_percent_Male population 65 and 66 years`, -`2010_percent_Male population 67 to 69 years`,
+             -`2010_percent_Female population 15 to 17 years`, -`2010_percent_Female population 18 and 19 years`, -`2010_percent_Female population 20 years`,
+             -`2010_percent_Female population 21 years`, -`2010_percent_Female population 22 to 24 years`, -`2010_percent_Female population 60 and 61 years`,
+             -`2010_percent_Female population 62 to 64 years`, -`2010_percent_Female population 65 and 66 years`, -`2010_percent_Female population 67 to 69 years`)
+  
+  return(census_data)
+}
+
+decennial_last_data_age_graph_cur <- get_decennial_last_gender_age_graph("county subdivision", decennial_last)
+decennial_last_data_age_graph_county <- get_decennial_last_gender_age_graph("county", decennial_last)
+decennial_last_data_age_graph_state <- get_decennial_last_gender_age_graph("state", decennial_last)
+
+#get housing unit count for 2010
+get_decennial_housing_units_old <- function(geo_type, year) {
+  
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = "H001001",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "sf1"
+  ) %>%
+    select(-variable) %>% 
+    rename(`Housing units` = value)
+  
+  return(census_data)
+}
+
+decennial_data_housing_units_cur_2010 <- get_decennial_housing_units_old("county subdivision", decennial_last) %>% 
+  rename(`2010_Housing units` = `Housing units`)
+decennial_data_housing_units_county_2010 <- get_decennial_housing_units_old("county", decennial_last) %>% 
+  rename(`2010_Housing units` = `Housing units`)
+decennial_data_housing_units_state_2010 <- get_decennial_housing_units_old("state", decennial_last) %>% 
+  rename(`2010_Housing units` = `Housing units`)
+
+decennial_data_housing_units_cur_2000 <- get_decennial_housing_units_old("county subdivision", 2000) %>% 
+  rename(`2000_Housing units` = `Housing units`)
+decennial_data_housing_units_county_2000 <- get_decennial_housing_units_old("county", 2000) %>% 
+  rename(`2000_Housing units` = `Housing units`)
+decennial_data_housing_units_state_2000 <- get_decennial_housing_units_old("state", 2000) %>% 
+  rename(`2000_Housing units` = `Housing units`)
+
+
+```
+
+Process the historic population data downloaded from IPUMS NHGIS
+Note that the numbers in historic_pop_state should be manually changed if using for a state other than WI
+```{r historic data}
+pop_1970 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0003_ds94_1970_cty_sub.csv")) %>% 
+  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  rename(population_1970 = CBC001) %>% 
+  select(CTY_SUB, population_1970) %>% 
+  #make formatting consistent with other years
+  mutate(CTY_SUB = str_replace(CTY_SUB, " \\(Part\\)", "")) %>% 
+  mutate(CTY_SUB = paste(word(CTY_SUB, 1, -2), tolower(word(CTY_SUB, -1, -1))))
+
+pop_1980 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0005_ds117_1980_cty_sub.csv")) %>% 
+  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  rename(population_1980 = DZ2001) %>% 
+  select(CTY_SUB, population_1980)
+
+pop_1990 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0003_ds120_1990_cty_sub.csv")) %>% 
+  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  rename(population_1990 = ET1001) %>% 
+  select(CTY_SUB, population_1990)
+
+pop_2000 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0002_ds146_2000_cty_sub.csv")) %>% 
+  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  rename(population_2000 = FL5001) %>% 
+  select(CTY_SUB, population_2000)
+
+historic_pop_muni <- pop_1970 %>% 
+  full_join(pop_1980, by = join_by(CTY_SUB == CTY_SUB)) %>% 
+  full_join(pop_1990, by = join_by(CTY_SUB == CTY_SUB)) %>% 
+  full_join(pop_2000, join_by(CTY_SUB == CTY_SUB)) %>% 
+  mutate(CTY_SUB = paste0(CTY_SUB, ", Dane County, Wisconsin"))
+
+historic_pop_county <- historic_pop_muni %>%
+  summarise(across(c(2:5), ~sum(.x, na.rm = TRUE)))
+
+#easier to just look up and manually set this data
+historic_pop_state <- historic_pop_county %>% 
+  mutate(
+    population_1970 = 4417821,
+    population_1980 = 4712045,
+    population_1990 = 4902265,
+    population_2000 = 5373999
+  )
+
+```
+
+Join all the census estimate datasets together into dataframes for muni, county, and state
+```{r join estimates}
+
+data_muni <- decennial_data_age_cur %>%
+  left_join(decennial_data_age_graph_cur, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_race_nh_cur, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_race_cur, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_education_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_income_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_employment_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_structure_year_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_homeowner_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_home_value_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_cost_burden_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_labor_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_poverty_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_structure_type_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_vacancy_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  #left_join(acs_data_avg_hh_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(historic_pop_muni, join_by(NAME == CTY_SUB)) %>% 
+  left_join(decennial_last_data_age_cur, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_last_data_age_graph_cur, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_cur, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_cur_2010, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_cur_2000, join_by(GEOID == GEOID, NAME == NAME))
+
+
+data_county <- decennial_data_age_county %>%
+  left_join(decennial_data_age_graph_county, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_race_nh_county, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_race_county, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_education_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_income_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_employment_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_structure_year_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_homeowner_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_home_value_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_cost_burden_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_labor_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_poverty_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_structure_type_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_vacancy_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  #left_join(acs_data_avg_hh_county$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  bind_cols(historic_pop_county) %>% 
+  left_join(decennial_last_data_age_county, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_last_data_age_graph_county, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_housing_units_county, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_county_2010, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_county_2000, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  select(-GEOID) %>%
+  mutate(NAME = "Dane County")
+
+data_state <- decennial_data_age_state %>%
+  left_join(decennial_data_age_graph_state, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_race_nh_state, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_race_state, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_education_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_income_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_employment_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_structure_year_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_homeowner_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(acs_data_home_value_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_cost_burden_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_labor_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_poverty_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_structure_type_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(acs_data_vacancy_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  #left_join(acs_data_avg_hh_state$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  bind_cols(historic_pop_state) %>% 
+  left_join(decennial_last_data_age_state, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_last_data_age_graph_state, join_by(GEOID == GEOID, NAME == NAME)) %>%
+  left_join(decennial_data_housing_units_state, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_state_2010, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_housing_units_state_2000, join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  select(-GEOID) %>%
+  mutate(NAME = "State of Wisconsin")
+```
+
+Join the MOE datasets together into dataframes for muni, county, and state
+```{r join moe}
+
+#utility function to finish up making the MOE tables
+clean_moe_table <- function(df) {
+  
+  df <- df %>%
+    left_join(var_info, join_by(variable == Variable)) %>% 
+    mutate(across(c(estimate, moe, cv), ~ round(.x, 2))) %>% 
+    rename(Estimate = estimate,
+           MOE = moe,
+           CV = cv,
+           Reliability = reliability,
+           Variable = variable) %>% 
+    select(NAME, Census, Topic, Variable, Estimate, MOE, CV, Reliability)
+  
+  return(df)
+}
+
+var_info <- read.csv("census_variables.csv")
+
+moe_report_muni <- bind_rows(list(acs_data_education_cur$moe, acs_data_income_cur$moe, acs_data_employment_cur$moe, 
+                                  acs_data_structure_year_cur$moe, acs_data_homeowner_cur$moe, acs_data_home_value_cur$moe, 
+                                  acs_data_cost_burden_cur$moe, acs_data_labor_cur$moe, acs_data_poverty_cur$moe, 
+                                  acs_data_structure_type_cur$moe, acs_data_vacancy_cur$moe)) %>% 
+  clean_moe_table()
+
+moe_report_county <- bind_rows(list(acs_data_education_county$moe, acs_data_income_county$moe, acs_data_employment_county$moe, 
+                             acs_data_structure_year_county$moe, acs_data_homeowner_county$moe, acs_data_home_value_county$moe, 
+                             acs_data_cost_burden_county$moe, acs_data_labor_county$moe, acs_data_poverty_county$moe, 
+                             acs_data_structure_type_county$moe, acs_data_vacancy_county$moe)) %>% 
+  select(-GEOID) %>%
+  mutate(NAME = "Dane County") %>% 
+  clean_moe_table()
+
+moe_report_state <- bind_rows(list(acs_data_education_state$moe, acs_data_income_state$moe, acs_data_employment_state$moe, 
+                                   acs_data_structure_year_state$moe, acs_data_homeowner_state$moe, acs_data_home_value_state$moe, 
+                                   acs_data_cost_burden_state$moe, acs_data_labor_state$moe, acs_data_poverty_state$moe, 
+                                   acs_data_structure_type_state$moe, acs_data_vacancy_state$moe)) %>% 
+  select(-GEOID) %>%
+  mutate(NAME = "State of Wisconsin") %>% 
+  clean_moe_table()
+```
+
