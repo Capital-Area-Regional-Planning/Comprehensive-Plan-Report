@@ -1,7 +1,7 @@
 ---
-date: "`r Sys.Date()`"
+#date: "`r Sys.Date()`"
 #author: "Your Name"
-title: "Planning Template"
+#title: "Planning Template"
 output: 
   officedown::rdocx_document:
     mapstyles:
@@ -156,6 +156,23 @@ iterate_progress_bar <- function() {
 acs_cur_year <- "2023"
 ```
 
+```{r cover_image,echo = FALSE}
+external_img(src = "RPC_Web_RGB_Horizontal.jpg", height = 1.3125/2, width = 2.90625/2)
+```
+
+<br>
+<br>
+
+**`r params$muni`: Census Data Report**  
+
+Generated on `r Sys.Date()` using the [CARPC Census Cruncher](https://capital-area-rpc.shinyapps.io/planning_report_tool_pilot/)
+
+<br>
+<br>
+
+```{r, echo = FALSE}
+block_toc()
+```
 
 \newpage
 
