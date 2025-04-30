@@ -109,6 +109,10 @@ decennial_var_gender_age_graph <- c(
   #female age groups
   paste0("DP1_00", c(50:67), "C")
 )
+
+decennial_var_hh_size <- c(
+  "HBG3_001N"
+)
 ```
 
 ```{r acs census variables}
@@ -199,9 +203,10 @@ acs_var_vacancy <- c(
   "DP04_0005"
 )
 
-acs_var_avg_hh <- c(
-  "DP02_0016"
-)
+# acs_var_avg_hh <- c(
+#   "DP02_0016"
+# )
+
 ```
 
 Pull the census data
@@ -371,6 +376,7 @@ get_decennial_housing_units <- function(geo_type, year) {
 decennial_data_housing_units_cur <- get_decennial_housing_units("county subdivision", decennial_cur)
 decennial_data_housing_units_county <- get_decennial_housing_units("county", decennial_cur)
 decennial_data_housing_units_state <- get_decennial_housing_units("state", decennial_cur)
+
 ```
 
 ```{r acs utility functions}
@@ -905,19 +911,48 @@ acs_data_vacancy_cur <- get_acs_vacancy("county subdivision", acs_year)
 acs_data_vacancy_county <- get_acs_vacancy("county", acs_year)
 acs_data_vacancy_state <- get_acs_vacancy("state", acs_year)
 
-#labor force info
-get_acs_avg_hh <- function(geo_type, year) {
+#TODO - can I delete this? Seemed to be multiple data sources...
+#average hh size info
+# get_acs_avg_hh <- function(geo_type, year) {
+#   
+#   census_data <- get_acs(
+#     geography = geo_type,
+#     variables = acs_var_avg_hh,
+#     year = year,
+#     state = state,
+#     county = county,
+#     survey = "acs5",
+#     geometry = F
+#   ) %>%
+#     mutate(variable = paste0(acs_year, " average household size")) %>% 
+#     rename(estimate_prop = estimate,
+#            moe_prop = moe) %>% 
+#     get_cv_reliability()
+#   
+#   estimate <- get_estimate_table(census_data)
+#   moe <- get_moe_table(census_data)
+#   
+#   return(list(estimate = estimate, moe = moe))
+# }
+# 
+# acs_data_avg_hh_cur <- get_acs_avg_hh("county subdivision", acs_year)
+# acs_data_avg_hh_county <- get_acs_avg_hh("county", acs_year)
+# acs_data_avg_hh_state <- get_acs_avg_hh("state", acs_year)
+
+#average hh size info
+get_acs_avg_hh_size <- function(geo_type, year) {
   
   census_data <- get_acs(
     geography = geo_type,
-    variables = acs_var_avg_hh,
-    year = year,
+    variables = "B25010_001",
+    #we want the data from 2020, not the most current
+    year = 2020,
     state = state,
     county = county,
     survey = "acs5",
     geometry = F
   ) %>%
-    mutate(variable = paste0(acs_year, " average household size")) %>% 
+    mutate(variable = paste0("Average household size_2020")) %>% 
     rename(estimate_prop = estimate,
            moe_prop = moe) %>% 
     get_cv_reliability()
@@ -928,9 +963,8 @@ get_acs_avg_hh <- function(geo_type, year) {
   return(list(estimate = estimate, moe = moe))
 }
 
-acs_data_avg_hh_cur <- get_acs_avg_hh("county subdivision", acs_year)
-acs_data_avg_hh_county <- get_acs_avg_hh("county", acs_year)
-acs_data_avg_hh_state <- get_acs_avg_hh("state", acs_year)
+#only need muni data
+acs_data_avg_hh_size_cur <- get_acs_avg_hh_size("county subdivision", acs_year)
 ```
 
 Get the 2010 census data
@@ -951,15 +985,6 @@ decennial_last_var_gender_age <- c(
   paste0("P012A0", 27:30),
   #female, 65+
   paste0("P012A0", 44:49)
-)
-
-
-decennial_last_var_gender_age_graph <- c(
-  #male age groups
-  paste0("P01200", c(3:9)),
-  paste0("P0120", c(10:25)),
-  #female age groups
-  paste0("P0120", c(27:49))
 )
 
 #get gender and age info for the table
@@ -1054,7 +1079,7 @@ decennial_last_data_age_graph_cur <- get_decennial_last_gender_age_graph("county
 decennial_last_data_age_graph_county <- get_decennial_last_gender_age_graph("county", decennial_last)
 decennial_last_data_age_graph_state <- get_decennial_last_gender_age_graph("state", decennial_last)
 
-#get housing unit count for 2010
+#get housing unit count
 get_decennial_housing_units_old <- function(geo_type, year) {
   
   census_data <- get_decennial(
@@ -1086,10 +1111,36 @@ decennial_data_housing_units_county_2000 <- get_decennial_housing_units_old("cou
 decennial_data_housing_units_state_2000 <- get_decennial_housing_units_old("state", 2000) %>% 
   rename(`2000_Housing units` = `Housing units`)
 
+#get average household size
+get_decennial_avg_hh_size_old <- function(geo_type, year) {
+  
+  census_data <- get_decennial(
+    geography = geo_type,
+    variables = "H012001",
+    year = year,
+    state = state,
+    county = county,
+    geometry = F,
+    sumfile = "sf1"
+  ) %>%
+    select(-variable) %>% 
+    rename(`Avg household size` = value)
+  
+  return(census_data)
+}
+
+#only need muni data
+decennial_data_avg_hh_size_cur_2010 <- get_decennial_avg_hh_size_old("county subdivision", decennial_last) %>% 
+  rename(`Average household size_2010` = `Avg household size`)
+
+decennial_data_avg_hh_size_cur_2000 <- get_decennial_avg_hh_size_old("county subdivision", 2000) %>% 
+  rename(`Average household size_2000` = `Avg household size`)
+
+
 
 ```
 
-Process the historic population data downloaded from IPUMS NHGIS
+Process the historic data downloaded from IPUMS NHGIS
 Note that the numbers in historic_pop_state should be manually changed if using for a state other than WI
 ```{r historic data}
 pop_1970 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0003_ds94_1970_cty_sub.csv")) %>% 
@@ -1133,6 +1184,18 @@ historic_pop_state <- historic_pop_county %>%
     population_2000 = 5373999
   )
 
+#process the historic hh size data
+hh_size_1990 <- read.csv(paste0(here(), "/data/historic_hh_size/nhgis0006_csv/nhgis0006_ds120_1990_cty_sub.csv")) %>% filter(COUNTY == "Dane") %>% 
+  select(CTY_SUB, ESJ001) %>% 
+  mutate(CTY_SUB = paste0(CTY_SUB, ", Dane County, Wisconsin")) %>% 
+  rename(`Average household size_1990` = ESJ001)
+
+historic_hh_size_muni <- acs_data_avg_hh_size_cur$estimate %>% 
+  left_join(decennial_data_avg_hh_size_cur_2010, by = join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(decennial_data_avg_hh_size_cur_2000, by = join_by(GEOID == GEOID, NAME == NAME)) %>% 
+  left_join(hh_size_1990, by = join_by(NAME == CTY_SUB)) %>% 
+  select(-GEOID)
+
 ```
 
 Join all the census estimate datasets together into dataframes for muni, county, and state
@@ -1155,6 +1218,7 @@ data_muni <- decennial_data_age_cur %>%
   left_join(acs_data_vacancy_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   #left_join(acs_data_avg_hh_cur$estimate, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   left_join(historic_pop_muni, join_by(NAME == CTY_SUB)) %>% 
+  left_join(historic_hh_size_muni, join_by(NAME == NAME)) %>% 
   left_join(decennial_last_data_age_cur, join_by(GEOID == GEOID, NAME == NAME)) %>%
   left_join(decennial_last_data_age_graph_cur, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   left_join(decennial_data_housing_units_cur, join_by(GEOID == GEOID, NAME == NAME)) %>% 
@@ -1234,26 +1298,60 @@ clean_moe_table <- function(df) {
 
 var_info <- read.csv("census_variables.csv")
 
-moe_report_muni <- bind_rows(list(acs_data_education_cur$moe, acs_data_income_cur$moe, acs_data_employment_cur$moe, 
-                                  acs_data_structure_year_cur$moe, acs_data_homeowner_cur$moe, acs_data_home_value_cur$moe, 
-                                  acs_data_cost_burden_cur$moe, acs_data_labor_cur$moe, acs_data_poverty_cur$moe, 
-                                  acs_data_structure_type_cur$moe, acs_data_vacancy_cur$moe)) %>% 
+moe_report_muni <- bind_rows(
+  list(
+    acs_data_education_cur$moe,
+    acs_data_income_cur$moe,
+    acs_data_employment_cur$moe,
+    acs_data_structure_year_cur$moe,
+    acs_data_homeowner_cur$moe,
+    acs_data_home_value_cur$moe,
+    acs_data_cost_burden_cur$moe,
+    acs_data_labor_cur$moe,
+    acs_data_poverty_cur$moe,
+    acs_data_structure_type_cur$moe,
+    acs_data_vacancy_cur$moe,
+    acs_data_avg_hh_size_cur$moe
+  )
+) %>%
   clean_moe_table()
 
-moe_report_county <- bind_rows(list(acs_data_education_county$moe, acs_data_income_county$moe, acs_data_employment_county$moe, 
-                             acs_data_structure_year_county$moe, acs_data_homeowner_county$moe, acs_data_home_value_county$moe, 
-                             acs_data_cost_burden_county$moe, acs_data_labor_county$moe, acs_data_poverty_county$moe, 
-                             acs_data_structure_type_county$moe, acs_data_vacancy_county$moe)) %>% 
+moe_report_county <- bind_rows(
+  list(
+    acs_data_education_county$moe,
+    acs_data_income_county$moe,
+    acs_data_employment_county$moe,
+    acs_data_structure_year_county$moe,
+    acs_data_homeowner_county$moe,
+    acs_data_home_value_county$moe,
+    acs_data_cost_burden_county$moe,
+    acs_data_labor_county$moe,
+    acs_data_poverty_county$moe,
+    acs_data_structure_type_county$moe,
+    acs_data_vacancy_county$moe
+  )
+) %>%
   select(-GEOID) %>%
-  mutate(NAME = "Dane County") %>% 
+  mutate(NAME = "Dane County") %>%
   clean_moe_table()
 
-moe_report_state <- bind_rows(list(acs_data_education_state$moe, acs_data_income_state$moe, acs_data_employment_state$moe, 
-                                   acs_data_structure_year_state$moe, acs_data_homeowner_state$moe, acs_data_home_value_state$moe, 
-                                   acs_data_cost_burden_state$moe, acs_data_labor_state$moe, acs_data_poverty_state$moe, 
-                                   acs_data_structure_type_state$moe, acs_data_vacancy_state$moe)) %>% 
+moe_report_state <- bind_rows(
+  list(
+    acs_data_education_state$moe,
+    acs_data_income_state$moe,
+    acs_data_employment_state$moe,
+    acs_data_structure_year_state$moe,
+    acs_data_homeowner_state$moe,
+    acs_data_home_value_state$moe,
+    acs_data_cost_burden_state$moe,
+    acs_data_labor_state$moe,
+    acs_data_poverty_state$moe,
+    acs_data_structure_type_state$moe,
+    acs_data_vacancy_state$moe
+  )
+) %>%
   select(-GEOID) %>%
-  mutate(NAME = "State of Wisconsin") %>% 
+  mutate(NAME = "State of Wisconsin") %>%
   clean_moe_table()
 ```
 

@@ -155,7 +155,6 @@ Housing Unit Type,Multiple family,ACS,(B25024_004 + B25024_005 + B25024_006 + B2
 Housing Unit Type,Mobile home/other,ACS,(B25024_010 + B25024_011)/B25024_001
 Housing Vacancy Rate,Homeowner vacancy,ACS,DP04_0004
 Housing Vacancy Rate,Rental vacancy,ACS,DP04_0005
-Average Household Size,2023 average household size,ACS,DP02_0016
 Population,population_1970,Decennial 1970,From IPUMs data
 Population,population_1980,Decennial 1980,From IPUMs data
 Population,population_1990,Decennial 1990,From IPUMs data
@@ -205,3 +204,7 @@ Age Group and Gender,2010_percent_Female population 85 years and over,Decennial,
 Housing units,Housing units,Decennial,H1_001N
 Housing units,2010_Housing units,Decennial 2010,H001001
 Housing units,2000_Housing units,Decennial 2000,H001001
+Average Household Size,Average household size_2020,ACS 2020,B25010_001
+Average Household Size,Average household size_2010,Decennial 2010,H012001
+Average Household Size,Average household size_2000,Decennial 2000,H012001
+Average Household Size,Average household size_1990,Decennial 1990,From IPUMs data

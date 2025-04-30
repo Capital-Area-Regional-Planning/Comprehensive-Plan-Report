@@ -143,6 +143,13 @@ vacancy_vars <- c(
   "Rental vacancy"
 )
 
+hh_size_vars <- c(
+  "Average household size_2020",
+  "Average household size_2010",
+  "Average household size_2000",
+  "Average household size_1990"
+)
+
 #for the progress bar
 num_sections <- 36
 cur_section <- 1
@@ -157,6 +164,7 @@ acs_cur_year <- "2023"
 ```
 
 ```{r cover_image,echo = FALSE}
+#doesn't work locally, uncomment when deploying
 external_img(src = "RPC_Web_RGB_Horizontal.jpg", height = 1.3125/2, width = 2.90625/2)
 ```
 
@@ -1265,6 +1273,58 @@ Source: `r acs_cur_year` 5-year ACS data
 
 \newpage
 
+## Average Household Size
+
+<br>
+<br>
+
+```{r hh_size_table, echo=FALSE}
+hh_size_data <- params$data %>%
+  filter(Variable %in% hh_size_vars) %>% 
+  select(1:2) %>% 
+  mutate(Variable = case_when(Variable == "Average household size_2020"~ "2020 average household size",
+                              Variable == "Average household size_2010" ~ "2010 average household size",
+                              Variable == "Average household size_2000" ~ "2000 average household size",
+                              Variable == "Average household size_1990" ~ "1990 average household size"))
+
+#display the table
+#head(cost_burden_data, n=length(cost_burden_vars))
+flextable(hh_size_data) %>% 
+  set_caption("Average Household Size 1990-2020") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+```
+Source: 2020 5-year ACS data & 2010, 2000, 1990 Decennial Census data
+
+\newpage
+
+```{r hh_size_graph, echo=FALSE}
+hh_size_data <- hh_size_data %>%
+  mutate(Variable = substr(Variable, 1, 4)) %>% 
+  pivot_longer(2:2)
+
+#display the chart
+hh_size_chart <-
+  ms_barchart(
+  data = hh_size_data,
+  x = "Variable",
+  y = "value"
+  ) %>%
+  chart_labels(title = "Average Household Size 1990-2020", xlab = "", ylab = "Average household size") %>%
+  set_theme(chart_default_theme) %>% 
+  chart_theme(legend_position = "n") %>% 
+  #chart_ax_y(num_fmt = "#,##0\\%") %>% 
+  #chart_data_labels(num_fmt = "0.0\\%", position = "outEnd", show_val = T) %>% 
+  chart_labels_text(fp_text_data)
+
+insert_chart(hh_size_chart, "hh_size")
+
+iterate_progress_bar()
+```
+Source: 2020 5-year ACS data & 2010, 2000, 1990 Decennial Census data
+
+\newpage
 
 # Census Reporting
 
