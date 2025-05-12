@@ -4,13 +4,7 @@ output: html_document
 date: "2025-02-26"
 ---
 
-To update to the next year for acs data:
-1. change label to the current year of any acs variables in census_variables.csv
-(family income, household income)
-2. run the chunks related to acs in this script
-3. change acs_cur_year variable in template.Rmd
-
-import libraries
+Import libraries
 ```{r}
 library(dplyr)
 library(here)
@@ -20,44 +14,6 @@ library(stringr)
 library(tidyr)
 ```
 
-Set the geography and census years
-```{r geography and year}
-#geography parameters
-state <- c("WI")
-county <- c("Dane")
-
-#the year of the most recent decennial census
-decennial_cur <- 2020
-
-#the year of the most recent ACS census
-acs_year <- 2023
-
-#the year of the last decennial census
-decennial_last <- 2010
-
-```
-
-
-Create the list of municipality choices and a crosswalk to translate to census names
-```{r muni choices}
-#the municipal borders
-muni_shp <- read_sf(paste0(here::here(), "/data/MunicipalBoundaries/Municipal_Boundaries.shp"))
-
-#the choice of names for the user
-muni_choice_list <- unique(muni_shp$NAME) %>%
-  sort()
-
-#translate normal muni names to census names
-muni_crosswalk <- decennial_data %>%
-  select(NAME) %>%
-  distinct() %>%
-  mutate(census_name = NAME) %>%
-  separate_wider_delim(NAME, ",", names=c("muni", "city", "state")) %>%
-  mutate(type = paste(str_to_sentence(word(muni,-1)), "of ")) %>%
-  mutate(muni = word(muni, 1, -2)) %>%
-  mutate(muni_name = paste0(type, muni)) %>%
-  select(muni_name, census_name)
-```
 
 Set the census variable codes that will be pulled for each report section
 ```{r decennial census variables}
@@ -1144,25 +1100,37 @@ Process the historic data downloaded from IPUMS NHGIS
 Note that the numbers in historic_pop_state should be manually changed if using for a state other than WI
 ```{r historic data}
 pop_1970 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0003_ds94_1970_cty_sub.csv")) %>% 
-  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  filter(STATE == state_full & COUNTY == county) %>% 
   rename(population_1970 = CBC001) %>% 
   select(CTY_SUB, population_1970) %>% 
   #make formatting consistent with other years
   mutate(CTY_SUB = str_replace(CTY_SUB, " \\(Part\\)", "")) %>% 
-  mutate(CTY_SUB = paste(word(CTY_SUB, 1, -2), tolower(word(CTY_SUB, -1, -1))))
+  mutate(CTY_SUB = paste(word(CTY_SUB, 1, -2), tolower(word(CTY_SUB, -1, -1)))) %>% 
+  #will likely need to edit below lines outside of Dane County
+  mutate(CTY_SUB = case_when(CTY_SUB == "De Forest village" ~ "DeForest village",
+                             CTY_SUB == "Mc Farland village" ~ "McFarland village",
+                             TRUE ~ CTY_SUB))
 
 pop_1980 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0005_ds117_1980_cty_sub.csv")) %>% 
-  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  filter(STATE == state_full & COUNTY == county) %>% 
   rename(population_1980 = DZ2001) %>% 
-  select(CTY_SUB, population_1980)
+  select(CTY_SUB, population_1980) %>% 
+  #will likely need to edit below lines outside of Dane County
+  mutate(CTY_SUB = case_when(CTY_SUB == "De Forest village" ~ "DeForest village",
+                             CTY_SUB == "Mc Farland village" ~ "McFarland village",
+                             TRUE ~ CTY_SUB))
 
 pop_1990 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0003_ds120_1990_cty_sub.csv")) %>% 
-  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  filter(STATE == state_full & COUNTY == county) %>% 
   rename(population_1990 = ET1001) %>% 
-  select(CTY_SUB, population_1990)
+  select(CTY_SUB, population_1990) %>% 
+  #will likely need to edit below lines outside of Dane County
+  mutate(CTY_SUB = case_when(CTY_SUB == "De Forest village" ~ "DeForest village",
+                             CTY_SUB == "Mc Farland village" ~ "McFarland village",
+                             TRUE ~ CTY_SUB))
 
 pop_2000 <- read.csv(paste0(here::here(), "/data/historic_population/nhgis0002_ds146_2000_cty_sub.csv")) %>% 
-  filter(STATE == "Wisconsin" & COUNTY == "Dane") %>% 
+  filter(STATE == state_full & COUNTY == county) %>% 
   rename(population_2000 = FL5001) %>% 
   select(CTY_SUB, population_2000)
 
@@ -1170,7 +1138,7 @@ historic_pop_muni <- pop_1970 %>%
   full_join(pop_1980, by = join_by(CTY_SUB == CTY_SUB)) %>% 
   full_join(pop_1990, by = join_by(CTY_SUB == CTY_SUB)) %>% 
   full_join(pop_2000, join_by(CTY_SUB == CTY_SUB)) %>% 
-  mutate(CTY_SUB = paste0(CTY_SUB, ", Dane County, Wisconsin"))
+  mutate(CTY_SUB = paste0(CTY_SUB, ", ", county_label, ", ", state_full))
 
 historic_pop_county <- historic_pop_muni %>%
   summarise(across(c(2:5), ~sum(.x, na.rm = TRUE)))
@@ -1184,10 +1152,13 @@ historic_pop_state <- historic_pop_county %>%
     population_2000 = 5373999
   )
 
+historic_pop_state <- read.csv(paste0(here(), "/data/historic_population/state_pop.csv"))
+
 #process the historic hh size data
-hh_size_1990 <- read.csv(paste0(here(), "/data/historic_hh_size/nhgis0006_csv/nhgis0006_ds120_1990_cty_sub.csv")) %>% filter(COUNTY == "Dane") %>% 
+#note that for state outside of wisconsin, you'll need to change this
+hh_size_1990 <- read.csv(paste0(here(), "/data/historic_hh_size/nhgis0006_csv/nhgis0006_ds120_1990_cty_sub.csv")) %>% filter(COUNTY == county) %>% 
   select(CTY_SUB, ESJ001) %>% 
-  mutate(CTY_SUB = paste0(CTY_SUB, ", Dane County, Wisconsin")) %>% 
+  mutate(CTY_SUB = paste0(CTY_SUB, ", ", county_label, ", Wisconsin")) %>% 
   rename(`Average household size_1990` = ESJ001)
 
 historic_hh_size_muni <- acs_data_avg_hh_size_cur$estimate %>% 
@@ -1249,7 +1220,7 @@ data_county <- decennial_data_age_county %>%
   left_join(decennial_data_housing_units_county_2010, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   left_join(decennial_data_housing_units_county_2000, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   select(-GEOID) %>%
-  mutate(NAME = "Dane County")
+  mutate(NAME = county_label)
 
 data_state <- decennial_data_age_state %>%
   left_join(decennial_data_age_graph_state, join_by(GEOID == GEOID, NAME == NAME)) %>%
@@ -1274,7 +1245,7 @@ data_state <- decennial_data_age_state %>%
   left_join(decennial_data_housing_units_state_2010, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   left_join(decennial_data_housing_units_state_2000, join_by(GEOID == GEOID, NAME == NAME)) %>% 
   select(-GEOID) %>%
-  mutate(NAME = "State of Wisconsin")
+  mutate(NAME = state_label)
 ```
 
 Join the MOE datasets together into dataframes for muni, county, and state
@@ -1332,7 +1303,7 @@ moe_report_county <- bind_rows(
   )
 ) %>%
   select(-GEOID) %>%
-  mutate(NAME = "Dane County") %>%
+  mutate(NAME = county_label) %>%
   clean_moe_table()
 
 moe_report_state <- bind_rows(
@@ -1351,7 +1322,22 @@ moe_report_state <- bind_rows(
   )
 ) %>%
   select(-GEOID) %>%
-  mutate(NAME = "State of Wisconsin") %>%
+  mutate(NAME = state_label) %>%
   clean_moe_table()
+```
+
+Create crosswalk to translate normal muni names to census names
+
+```{r crosswalk}
+#translate normal muni names to census names
+muni_crosswalk <- data_muni %>%
+  select(NAME) %>%
+  distinct() %>%
+  mutate(census_name = NAME) %>%
+  separate_wider_delim(NAME, ",", names=c("muni", "city", "state")) %>%
+  mutate(type = paste(str_to_sentence(word(muni,-1)), "of ")) %>%
+  mutate(muni = word(muni, 1, -2)) %>%
+  mutate(muni_name = paste0(type, muni)) %>%
+  select(muni_name, census_name)
 ```
 

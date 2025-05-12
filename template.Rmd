@@ -8,16 +8,18 @@ output:
       Normal: ['First Paragraph']
 params:
   muni: NA
+  county: NA
+  state: NA
   data: NA
   moe_reports: NA
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.cap = TRUE)
-library(officedown)
-library(officer)
-library(dplyr)
-library(stringr)
+#library(officedown)
+#library(officer)
+#library(dplyr)
+#library(stringr)
 
 # fp <- fp_par(
 #   text.align = "center", 
@@ -56,6 +58,15 @@ insert_chart = function(chart_to_insert, id) {
 
   #Pour that document into the rmarkdown
   block_pour_docx(paste0("placeholders/placeholder_", id, ".docx"))
+}
+```
+
+```{r colnames_to_labels, include=FALSE}
+#utility funciton to change generic county and state column names to the labels
+colnames_to_labels = function(data) {
+  data %>% 
+    rename((!!params$county) := County,
+           (!!params$state) := State)
 }
 ```
 
@@ -161,6 +172,7 @@ iterate_progress_bar <- function() {
 
 #for data source info
 acs_cur_year <- "2023"
+
 ```
 
 ```{r cover_image,echo = FALSE}
@@ -171,9 +183,13 @@ external_img(src = "RPC_Web_RGB_Horizontal.jpg", height = 1.3125/2, width = 2.90
 <br>
 <br>
 
-**`r params$muni`: Census Data Report**  
-
+**`r params$muni`: Census Data Report* **  
 Generated on `r Sys.Date()` using the [CARPC Census Cruncher](https://capital-area-rpc.shinyapps.io/planning_report_tool_pilot/)
+
+<br>
+<br>
+
+*Note that for a municipality split between multiple counties, this report only includes census data for the area within `r params$county`
 
 <br>
 <br>
@@ -198,11 +214,12 @@ block_toc()
 ### Summary Table
 <br>
 <br>
-
+Note that historic population data is not included for municipalites that have changed type. For example, if a town became a city in 2010, then the population totals will show as NA prior to 2010.
 ```{r population_trend_table, echo=FALSE}
 
 #select the correct data
 pop_data <- params$data %>%
+  colnames_to_labels() %>% 
   filter(Variable %in% pop_trend_vars) %>% 
   mutate(Variable = case_when(Variable == "Population" ~ "population_2020",
                               TRUE ~ Variable)) %>% 
@@ -293,14 +310,14 @@ age_data_s2 <- params$data %>%
 
 age_data <- full_join(age_data_s1, age_data_s2, join_by(Variable == Variable)) %>% 
   #order correctly
-  select(Variable, !!as.name(paste0("2010_", params$muni)), !!as.name(paste0("2020_", params$muni)), `2010_Dane County`, `2020_Dane County`, `2010_State of Wisconsin`, `2020_State of Wisconsin` )
+  select(Variable, !!as.name(paste0("2010_", params$muni)), !!as.name(paste0("2020_", params$muni)), `2010_County`, `2020_County`, `2010_State`, `2020_State`)
 
 #using flextable to merge cells and fit CARPC table design
 age_table <- flextable(age_data) %>%
   set_header_labels(values = c("", "2010", "2020", "2010", "2020", "2010", "2020")) %>% 
   add_header_row(
   colwidths = c(1, 2, 2, 2),
-  values = c("", params$muni, "Dane County", "State of Wisconsin")
+  values = c("", params$muni, params$county, params$state)
   ) %>%
   set_caption("Age Summary") %>% 
   align(align = "center", part = "all") %>% 
@@ -326,7 +343,7 @@ age_graph_data_percent_table_s1 <- params$data %>%
   mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))) %>% 
   group_by(Variable) %>% 
   #sum into brackets, dropping gender division
-  summarise(`2020_community` = sum(!!as.name(params$muni)), `2020_Dane County` = sum(`Dane County`), `2020_State of Wisconsin` = sum(`State of Wisconsin`)) 
+  summarise(`2020_community` = sum(!!as.name(params$muni)), `2020_County` = sum(County), `2020_State` = sum(State)) 
 
 age_graph_data_percent_table_s2 <- params$data %>%
   #shortcut to find the right variables
@@ -338,18 +355,19 @@ age_graph_data_percent_table_s2 <- params$data %>%
   mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))) %>% 
   group_by(Variable) %>% 
   #sum into brackets, dropping gender division
-  summarise(`2010_community` = sum(!!as.name(params$muni)), `2010_Dane County` = sum(`Dane County`), `2010_State of Wisconsin` = sum(`State of Wisconsin`))
+  summarise(`2010_community` = sum(!!as.name(params$muni)), `2010_County` = sum(County), `2010_State` = sum(State)) 
+
 
 age_graph_data_percent_table <- left_join(age_graph_data_percent_table_s1, age_graph_data_percent_table_s2, join_by(Variable == Variable)) %>% 
   #order correctly
-  select(Variable, `2010_community`, `2020_community`, `2010_Dane County`, `2020_Dane County`, `2010_State of Wisconsin`, `2020_State of Wisconsin` )
+  select(Variable, `2010_community`, `2020_community`, `2010_County`, `2020_County`, `2010_State`, `2020_State` )
 
 #using flextable to merge cells and fit CARPC table design
 age_bracket_table <- flextable(age_graph_data_percent_table) %>%
   set_header_labels(values = c("", "2010", "2020", "2010", "2020", "2010", "2020")) %>% 
   add_header_row(
   colwidths = c(1, 2, 2, 2),
-  values = c("", params$muni, "Dane County", "State of Wisconsin")
+  values = c("", params$muni, params$county, params$state)
   ) %>%
   set_caption("Age Bracket by Percent") %>% 
   align(align = "center", part = "all") %>% 
@@ -480,14 +498,14 @@ Source: 2020 Decennial census data
 age_p_county <-
   ms_barchart(
   data = age_graph_data_percent %>%
-    select(Variable, `Dane County`, group) %>% 
+    select(Variable, County, group) %>% 
     #order correctly
     mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
   x = "Variable",
-  y = "Dane County", group = "group"
+  y = "County", group = "group"
   ) %>% 
   chart_settings(dir = "horizontal", overlap = -50) %>% 
-  chart_labels(title = "Female & Male Percent Population by Age Group (Dane County)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  chart_labels(title = paste0("Female & Male Percent Population by Age Group (", params$county, ")"), xlab = "Age Group", ylab = "Percent of Population") %>% 
   set_theme(chart_default_theme) %>% 
   chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
   chart_ax_y(num_fmt = "#,###.0\\%")
@@ -503,10 +521,10 @@ Source: 2020 Decennial census data
 
 ```{r age_p_county_dual, echo=FALSE}
 age_graph_data_percent_dual <- age_graph_data_percent %>%
-  select(Variable, `Dane County`, group) %>%
+  select(Variable, County, group) %>%
   #make male category values negative to format graph correctly
-  mutate(`Dane County` = case_when(group == "Male" ~ `Dane County` * -1,
-                                   TRUE ~ `Dane County`))
+  mutate(County = case_when(group == "Male" ~ County * -1,
+                                   TRUE ~ County))
 
 age_p_county_dual <-
   ms_barchart(
@@ -514,10 +532,10 @@ age_p_county_dual <-
     #order correctly
     mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
   x = "Variable",
-  y = "Dane County", group = "group"
+  y = "County", group = "group"
   ) %>% 
   chart_settings(dir = "horizontal", overlap = 100) %>% 
-  chart_labels(title = "Female & Male Percent Population by Age Group (Dane County)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  chart_labels(title = paste0("Female & Male Percent Population by Age Group (", params$county, ")"), xlab = "Age Group", ylab = "Percent of Population") %>% 
   set_theme(chart_default_theme) %>% 
   chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
   chart_ax_x(tick_label_pos = "low") %>% 
@@ -541,14 +559,14 @@ Source: 2020 Decennial census data
 age_p_state <-
   ms_barchart(
   data = age_graph_data_percent %>%
-    select(Variable, `State of Wisconsin`, group) %>% 
+    select(Variable, State, group) %>% 
     #order correctly
     mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
   x = "Variable",
-  y = "State of Wisconsin", group = "group"
+  y = "State", group = "group"
   ) %>% 
   chart_settings(dir = "horizontal", overlap = -50) %>% 
-  chart_labels(title = "Female & Male Percent Population by Age Group (WI)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  chart_labels(title = paste0("Female & Male Percent Population by Age Group (", params$state, ")"), xlab = "Age Group", ylab = "Percent of Population") %>% 
   set_theme(chart_default_theme) %>% 
   chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
   chart_ax_y(num_fmt = "#,###.0\\%")
@@ -565,10 +583,10 @@ Source: 2020 Decennial census data
 ```{r age_p_state_dual, echo=FALSE}
 
 age_graph_data_percent_dual <- age_graph_data_percent %>%
-  select(Variable, `State of Wisconsin`, group) %>% 
+  select(Variable, State, group) %>% 
   #make male category values negative to format graph correctly
-  mutate(`State of Wisconsin` = case_when(group == "Male" ~ `State of Wisconsin` * -1,
-                                   TRUE ~ `State of Wisconsin`))
+  mutate(State = case_when(group == "Male" ~ State * -1,
+                                   TRUE ~ State))
 
 age_p_state_dual <-
   ms_barchart(
@@ -576,10 +594,10 @@ age_p_state_dual <-
     #order correctly
     mutate(Variable = factor(Variable, levels=unique(as.character(Variable)))),
   x = "Variable",
-  y = "State of Wisconsin", group = "group"
+  y = "State", group = "group"
   ) %>% 
   chart_settings(dir = "horizontal", overlap = 100) %>% 
-  chart_labels(title = "Female & Male Percent Population by Age Group (WI)", xlab = "Age Group", ylab = "Percent of Population") %>% 
+  chart_labels(title = paste0("Female & Male Percent Population by Age Group (", params$state, ")"), xlab = "Age Group", ylab = "Percent of Population") %>% 
   set_theme(chart_default_theme) %>% 
   chart_theme(title_x_rot = 270, title_y_rot = 0) %>% 
   chart_ax_x(tick_label_pos = "low") %>% 
@@ -603,12 +621,14 @@ Source: 2020 Decennial census data
 #select the correct data
 
 race_data_nh <- params$data %>%
-  filter(Variable %in% race_vars_nh) %>% 
+  filter(Variable %in% race_vars_nh) %>%
+  colnames_to_labels() %>% 
     #get rid of the prefixes for the sake of table/chart labels
   mutate(Variable = case_when(Variable != "Hispanic or Latino (any race)" ~ substr(Variable, 4, 200),
                               TRUE ~ Variable))
 race_data <- params$data %>%
   filter(Variable %in% race_vars) %>% 
+  colnames_to_labels() %>% 
   #reorder to display correctly in table
   arrange(factor(Variable, levels=unique(as.character(race_data_nh$Variable))))
 ```
@@ -659,7 +679,7 @@ race_chart_nh <-
   ms_barchart(
   data = race_data_nh %>% 
     pivot_longer(2:4) %>% 
-    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))), 
+    mutate(name = factor(name, levels=c(params$state, params$county, params$muni))), 
   x = "name",
   y = "value", group = "Variable"
   ) %>% 
@@ -700,7 +720,7 @@ race_chart <-
     #remove hispanic/latino category, doesn't add up to 100% otherwise
     filter(Variable != "Hispanic or Latino (any race)") %>% 
     pivot_longer(2:4) %>% 
-    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))), 
+    mutate(name = factor(name, levels=c(params$state, params$county, params$muni))), 
   x = "name",
   y = "value", group = "Variable"
   ) %>% 
@@ -746,6 +766,7 @@ Source: 2020 Decennial census data
 ```{r education_data, include=FALSE}
 #select the correct data
 education_data <- params$data %>%
+  colnames_to_labels() %>% 
   filter(Variable %in% education_vars)
   
 ```
@@ -774,7 +795,7 @@ education_chart <-
   ms_barchart(
   data = education_data %>% 
     pivot_longer(2:4) %>% 
-    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))) %>% 
+    mutate(name = factor(name, levels=c(params$state, params$county, params$muni))) %>% 
     mutate(Variable = factor(Variable, levels = education_vars)), 
   x = "name",
   y = "value", group = "Variable"
@@ -816,6 +837,7 @@ Source: `r acs_cur_year` 5-year ACS data
 ```{r median_income, echo=FALSE}
 #graph for median income
 median_income_data <- params$data %>%
+  colnames_to_labels() %>% 
   filter(Variable %in% c(paste0("Median household income in the past 12 months (in ", acs_cur_year, " inflation-adjusted dollars)"), paste0("Median family income in the past 12 months (in ", acs_cur_year, " inflation-adjusted dollars)"))) %>%
   mutate(Variable = case_when(Variable == paste0("Median household income in the past 12 months (in ", acs_cur_year, " inflation-adjusted dollars)") ~ "Median Household Income",
          Variable == paste0("Median family income in the past 12 months (in ", acs_cur_year, " inflation-adjusted dollars)") ~ "Median Family Income")) %>%
@@ -825,7 +847,7 @@ median_income_data <- params$data %>%
 median_income_chart <-
   ms_barchart(
   data = median_income_data %>% 
-    mutate(name = factor(name, levels=c(params$muni, "Dane County", "State of Wisconsin"))),
+    mutate(name = factor(name, levels=c(params$muni, params$county, params$state))),
   x = "Variable",
   y = "value", group = "name"
   ) %>%
@@ -890,13 +912,14 @@ Source: `r acs_cur_year` 5-year ACS data
 #graph for poverty
 poverty_data <- params$data %>% 
   filter(Variable %in% poverty_vars) %>% 
+  colnames_to_labels() %>% 
   pivot_longer(2:4)
 
 #display the chart
 poverty_chart <-
   ms_barchart(
   data = poverty_data %>% 
-    mutate(name = factor(name, levels=c(params$muni, "Dane County", "State of Wisconsin"))),
+    mutate(name = factor(name, levels=c(params$muni, params$county, params$state))),
   x = "Variable",
   y = "value", group = "name"
   ) %>%
@@ -930,6 +953,7 @@ Source: `r acs_cur_year` 5-year ACS data
 #graph for unemployment
 unemployment_data <- params$data %>% 
   filter(Variable == "Percent unemployment") %>% 
+  colnames_to_labels() %>% 
   pivot_longer(2:4)
 
 #display the chart
@@ -962,13 +986,14 @@ Source: `r acs_cur_year` 5-year ACS data
 #graph for industry employment
 industry_data <- params$data %>% 
   slice(120:132) %>% 
+  colnames_to_labels() %>% 
   pivot_longer(2:4)
 
 #display the chart
 industry_chart <-
   ms_barchart(
   data = industry_data %>% 
-    mutate(name = factor(name, levels=c("State of Wisconsin", "Dane County", params$muni))),
+    mutate(name = factor(name, levels=c(params$state, params$county, params$muni))),
   x = "Variable",
   y = "value", group = "name"
   ) %>%
@@ -995,6 +1020,7 @@ Source: `r acs_cur_year` 5-year ACS data
 #graph for labor force participation
 labor_data <- params$data %>% 
   filter(Variable == "Labor force participation") %>% 
+  colnames_to_labels() %>% 
   pivot_longer(2:4)
 
 #display the chart
@@ -1032,6 +1058,7 @@ Source: `r acs_cur_year` 5-year ACS data
 
 ```{r housing_unit_chart, echo = FALSE}
 housing_unit_data <- params$data %>% 
+  colnames_to_labels() %>% 
   filter(Variable %in% housing_unit_vars) %>% 
   mutate(Variable = case_when(Variable == "Housing units" ~ "2020 Housing units",
                               Variable == "2010_Housing units" ~ "2010 Housing units",
@@ -1133,7 +1160,8 @@ Source: `r acs_cur_year` 5-year ACS data
 #table for housing stock age
 
 structure_type_data <- params$data %>% 
- filter(Variable %in% structure_type_vars) 
+ filter(Variable %in% structure_type_vars) %>% 
+  colnames_to_labels()
 
 flextable(structure_type_data) %>% 
    set_caption("Housing Unit Structure Type (%)") %>% 
@@ -1154,6 +1182,7 @@ iterate_progress_bar()
 #graph for homeownership
 homeowner_data <- params$data %>% 
   filter(Variable == "Owner occupied") %>% 
+  colnames_to_labels() %>% 
   pivot_longer(2:4)
 
 #display the chart
@@ -1184,6 +1213,7 @@ Source: `r acs_cur_year` 5-year ACS data
 #graph for median home value
 home_value_data <- params$data %>%
   filter(Variable == "Median home value") %>% 
+  colnames_to_labels() %>% 
   pivot_longer(2:4)
 
 #display the chart
@@ -1211,8 +1241,9 @@ Source: `r acs_cur_year` 5-year ACS data
 ```{r housing_vacancy_table, echo = F}
 #table for housing stock vacancy
 
-vacancy_data <- all_data %>% 
- filter(Variable %in% vacancy_vars) 
+vacancy_data <- params$data %>% 
+ filter(Variable %in% vacancy_vars) %>% 
+  colnames_to_labels()
 
 flextable(vacancy_data) %>% 
    set_caption("Housing Vacancy (%)") %>% 
@@ -1231,7 +1262,8 @@ Source: `r acs_cur_year` 5-year ACS data
 
 ```{r cost_burden_table, echo=FALSE}
 cost_burden_data <- params$data %>%
-  filter(Variable %in% cost_burden_vars)
+  filter(Variable %in% cost_burden_vars) %>% 
+  colnames_to_labels()
 
 #display the table
 #head(cost_burden_data, n=length(cost_burden_vars))

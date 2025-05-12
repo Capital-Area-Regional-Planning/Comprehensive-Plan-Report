@@ -1,0 +1,73 @@
+---
+title: "Tutorial"
+output: html_document
+date: "2025-05-07"
+---
+
+Use this script to create a version of the census cruncher for any US county
+
+## Set geography variables
+
+```{r geography}
+#the variables for pulling from the census
+state <- "WI"
+county <- "Dane"
+
+#the labels that will show up in charts/graphs
+state_label <- "State of Wisconsin"
+county_label <- "Dane County"
+
+#the full name of the state, for filtering historical data
+state_full <- "Wisconsin"
+
+```
+
+## Set census year variables 
+
+```{r census_year}
+#the year of the most recent decennial census
+decennial_cur <- 2020
+
+#the year of the most recent ACS census
+acs_year <- 2023
+
+#the year of the last decennial census
+decennial_last <- 2010
+```
+
+
+## Create the list of municipality choices
+
+Requires a csv with all the municipality names within the county, with the format 'City of x'/'Town of x'/'Village of x'
+
+```{r muni choices}
+muni_choice_list <- as.vector(read.csv(paste0(here(), "/data/muni_names.csv")))
+```
+
+## Create the census data tables
+
+1. If running for a state outside of Wisconsin:
+
+-Replace the totals data/historic_population/state_pop.csv with the correct state population totals (these should be easy to Google)
+
+-replace the data/historic_hh_size/nhgis0006_ds120_1990_cty_sub.csv with a dataset downloaded from IPUM for the correct state.
+
+2. Run all code in create_data_table.Rmd
+
+Note that some muni names for the historic population table may need to be corrected (e.x. 1990 data says 'De Forest village' and current data says 'DeForest village'). To do this, go to the 'historic data' chunk and edit the 'case_when' examples, following the same formatting.
+
+### Run app
+
+Run all the code in app.R. If you want to deploy to Posit cloud, put this line in the console: 
+
+rsconnect::deployApp()
+
+### Update app
+
+For simple yearly ACS data updates. Updating for new decennial data will be more a more complicated process.
+
+1. Change acs_year to the current year for any acs variables in census_variables.csv
+(family income, household income) and save
+2. Change acs_cur_year variable
+3. Run all code in create_data_table.rmd
+4. Redeploy if needed
