@@ -33,6 +33,7 @@ ui <-
       #    or conducting other analysis. </p>"),
       br(),
       selectInput("muni_choices", "Select a municipality:", muni_choice_list),
+      selectInput("muni_pop_compare", "Select municipalities for population comparison:", muni_choice_list, multiple = TRUE),
       downloadButton("download_word_document", "Download")
     ),
     tabPanel(
@@ -49,18 +50,34 @@ server <- function(input, output) {
       },
       content = function(file) {
         withProgress(value = 0, message = 'Creating report, please wait!',  {
+        
         #find the census name of the selected geography
         muni_chosen <- muni_crosswalk %>% 
           filter(muni_name == input$muni_choices) %>% 
           select(census_name) %>% 
           paste()
         
+        #find the census name of the selected comparison geos
+        data_muni_pop <- muni_crosswalk %>% 
+          filter(muni_name %in% input$muni_pop_compare) %>% 
+          select(census_name)
+        
         #the filtered census data
         data_muni_f <- data_muni %>%
           filter(NAME == muni_chosen) %>%
           select(-GEOID) %>%
           mutate(NAME = input$muni_choices)
-
+     
+        #filtered census data for population comparison
+        data_pop_compare <- data_muni %>%
+          select(NAME, population_1980, population_1990, population_2000, population_2010, Population) %>%
+          filter(NAME %in% as.vector(data_muni_pop$census_name)) %>% 
+          left_join(muni_crosswalk, join_by("NAME" == "census_name")) %>% 
+          select(-NAME) %>% 
+          rename(`1980` = population_1980, `1990` = population_1990, `2000` = population_2000, `2010` = population_2010, `2020` = Population, Municipality = muni_name) %>% 
+          relocate(Municipality, .before = `1980`) %>% 
+          mutate(across(2:6, ~ str_trim(format(.x, big.mark = ",", scientific = FALSE))))
+        
         #for testing
         # data_muni_f <- data_muni %>%
         #   filter(NAME == "Albion town, Dane County, Wisconsin") %>%
@@ -90,7 +107,8 @@ server <- function(input, output) {
                        county = county_label,
                        state = state_label,
                        data = all_data,
-                       moe_reports = list(muni = data_moe_f, county = moe_report_county %>% select(-NAME, -Census), state = moe_report_state %>%  select(-NAME, -Census)))
+                       moe_reports = list(muni = data_moe_f, county = moe_report_county %>% select(-NAME, -Census), state = moe_report_state %>%  select(-NAME, -Census)),
+                       muni_compare = data_pop_compare)
         
         rmarkdown::render("template.Rmd", output_file = file,
                           params = params,

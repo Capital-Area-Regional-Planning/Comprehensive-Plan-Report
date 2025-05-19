@@ -12,6 +12,7 @@ params:
   state: NA
   data: NA
   moe_reports: NA
+  muni_compare: NA
 ---
 
 ```{r setup, include=FALSE}
@@ -161,6 +162,13 @@ hh_size_vars <- c(
   "Average household size_1990"
 )
 
+#population comparison boolean
+if(nrow(params$muni_compare) > 0) {
+  population_compare <- TRUE 
+} else {
+  population_compare <- FALSE 
+}
+  
 #for the progress bar
 num_sections <- 36
 cur_section <- 1
@@ -211,10 +219,10 @@ block_toc()
 <br>
 <br>
 
-### Summary Table
+### Summary Tables
 <br>
 <br>
-Note that historic population data is not included for municipalites that have changed type. For example, if a town became a city in 2010, then the population totals will show as NA prior to 2010.
+Note that historic population data is not included for municipalities that have changed type. For example, if a town became a city in 2010, then the population totals will show as NA prior to 2010.
 ```{r population_trend_table, echo=FALSE}
 
 #select the correct data
@@ -243,6 +251,27 @@ iterate_progress_bar()
 Source: 2020, 2010, 2000, 1990, 1980 Decennial census data
 
 \newpage
+
+```{r population_comparison_table, echo=FALSE, eval=population_compare}
+
+pop_compare <- pop_data %>% 
+  slice(1) %>% 
+  select(-`Population Change 2010-2020`) %>% 
+  rename(Municipality = name) %>% 
+  bind_rows(params$muni_compare)
+
+#display the table
+flextable(pop_compare) %>%
+  set_caption("Population by Decade - Municipal Comparison") %>% 
+  autofit(add_w = 0)
+
+iterate_progress_bar()
+
+```
+
+`r if(population_compare){"Source: 2020, 2010, 2000, 1990, 1980 Decennial census data"}`
+
+`r if(population_compare){"\\newpage"}`
 
 ### Summary Chart
 
