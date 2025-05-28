@@ -41,6 +41,7 @@ decennial_last <- 2010
 Requires a csv with all the municipality names within the county, with the format 'City of x'/'Town of x'/'Village of x'
 
 ```{r muni choices}
+library(here)
 muni_choice_list <- as.vector(read.csv(paste0(here(), "/data/muni_names.csv")))
 ```
 
@@ -61,6 +62,8 @@ Note that some muni names for the historic population table may need to be corre
 Run all the code in app.R. If you want to deploy to Posit cloud, put this line in the console: 
 
 rsconnect::deployApp()
+
+You'll also want to replace the link on the cover page of the reports - search for 'https://capital-area-rpc.shinyapps.io/planning_report_tool_pilot/' in tutorial.Rmd and replace it with your URL.
 
 ### Update app
 
